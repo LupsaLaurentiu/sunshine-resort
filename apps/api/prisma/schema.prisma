@@ -1,0 +1,338 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ReservationStatus {
+  PENDING_APPROVAL
+  APPROVED_AWAITING_PAYMENT
+  CONFIRMED
+  REJECTED
+  CANCELLED
+  EXPIRED
+  CHECKED_IN
+  CHECKED_OUT
+}
+
+enum ReservationSource {
+  DIRECT_WEBSITE
+  MANUAL_ADMIN
+  BOOKING_COM
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  CANCELLED
+  REFUNDED
+}
+
+enum PaymentType {
+  DEPOSIT
+  FULL
+  REMAINING_BALANCE
+}
+
+enum PaymentProvider {
+  STRIPE
+  MANUAL
+}
+
+model Admin {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  firstName    String
+  lastName     String
+  isActive     Boolean  @default(true)
+  lastLoginAt  DateTime?
+
+  createdReservations  Reservation[]   @relation("ReservationCreatedBy")
+  approvedReservations Reservation[]   @relation("ReservationApprovedBy")
+  blockedPeriods       BlockedPeriod[] @relation("BlockedPeriodCreatedBy")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model RoomType {
+  id            String  @id @default(cuid())
+  nameRo        String
+  nameEn        String
+  slug          String  @unique
+  descriptionRo String?
+  descriptionEn String?
+  basePrice     Decimal @db.Decimal(10, 2)
+  maxAdults     Int
+  sizeSqm       Int?
+  isActive      Boolean @default(true)
+
+  rooms          Room[]
+  promotionLinks PromotionRoomType[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive])
+}
+
+model Room {
+  id         String  @id @default(cuid())
+  name       String
+  code       String  @unique
+  roomTypeId String
+  floor      Int?
+  tvDeviceId String? @unique
+  isActive   Boolean @default(true)
+
+  roomType       RoomType          @relation(fields: [roomTypeId], references: [id])
+  reservations  ReservationRoom[]
+  blockedPeriods BlockedPeriod[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([roomTypeId])
+  @@index([isActive])
+}
+
+model Guest {
+  id        String  @id @default(cuid())
+  firstName String
+  lastName  String
+  email     String
+  phone     String?
+  country   String?
+  notes     String?
+
+  reservations Reservation[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([email])
+}
+
+model Reservation {
+  id     String            @id @default(cuid())
+  guestId String
+  status  ReservationStatus @default(PENDING_APPROVAL)
+  source  ReservationSource @default(DIRECT_WEBSITE)
+
+  checkInDate  DateTime @db.Date
+  checkOutDate DateTime @db.Date
+  checkInTime  String   @default("14:00")
+  checkOutTime String   @default("10:00")
+
+  adults Int
+  nights Int
+
+  subtotalPrice    Decimal @db.Decimal(10, 2)
+  discountAmount   Decimal @default(0) @db.Decimal(10, 2)
+  totalPrice       Decimal @db.Decimal(10, 2)
+  depositPercentage Decimal @default(50) @db.Decimal(5, 2)
+  depositAmount    Decimal @db.Decimal(10, 2)
+  paidAmount       Decimal @default(0) @db.Decimal(10, 2)
+
+  promotionId String?
+
+  createdByAdminId  String?
+  approvedByAdminId String?
+
+  adminNotes String?
+  guestNotes String?
+
+  rejectionReason    String?
+  cancellationReason String?
+
+  approvedAt  DateTime?
+  rejectedAt  DateTime?
+  cancelledAt DateTime?
+  confirmedAt DateTime?
+  checkedInAt DateTime?
+  checkedOutAt DateTime?
+  expiresAt   DateTime?
+
+  guest Guest @relation(
+    fields: [guestId],
+    references: [id]
+  )
+
+  promotion Promotion? @relation(
+    fields: [promotionId],
+    references: [id],
+    onDelete: SetNull
+  )
+
+  createdByAdmin Admin? @relation(
+    "ReservationCreatedBy",
+    fields: [createdByAdminId],
+    references: [id],
+    onDelete: SetNull
+  )
+
+  approvedByAdmin Admin? @relation(
+    "ReservationApprovedBy",
+    fields: [approvedByAdminId],
+    references: [id],
+    onDelete: SetNull
+  )
+
+  rooms    ReservationRoom[]
+  payments Payment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([guestId])
+  @@index([status])
+  @@index([source])
+  @@index([checkInDate, checkOutDate])
+  @@index([createdByAdminId])
+  @@index([approvedByAdminId])
+  @@index([promotionId])
+}
+
+model ReservationRoom {
+  id            String  @id @default(cuid())
+  reservationId String
+  roomId        String
+
+  adults        Int
+  pricePerNight Decimal @db.Decimal(10, 2)
+  nights        Int
+  subtotal      Decimal @db.Decimal(10, 2)
+
+  reservation Reservation @relation(
+    fields: [reservationId],
+    references: [id],
+    onDelete: Cascade
+  )
+
+  room Room @relation(
+    fields: [roomId],
+    references: [id]
+  )
+
+  @@unique([reservationId, roomId])
+  @@index([roomId])
+  @@index([reservationId])
+}
+
+model Payment {
+  id            String          @id @default(cuid())
+  reservationId String
+  type          PaymentType
+  status        PaymentStatus   @default(PENDING)
+  provider      PaymentProvider @default(STRIPE)
+
+  amount   Decimal @db.Decimal(10, 2)
+  currency String  @default("RON")
+
+  stripeCheckoutSessionId String? @unique
+  stripePaymentIntentId   String? @unique
+  providerEventId         String? @unique
+  paymentUrl              String?
+
+  paidAt     DateTime?
+  failedAt   DateTime?
+  cancelledAt DateTime?
+  refundedAt DateTime?
+
+  failureReason String?
+
+  reservation Reservation @relation(
+    fields: [reservationId],
+    references: [id],
+    onDelete: Cascade
+  )
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([reservationId])
+  @@index([status])
+  @@index([type])
+}
+
+model BlockedPeriod {
+  id               String @id @default(cuid())
+  roomId           String
+  createdByAdminId String?
+
+  startDate DateTime @db.Date
+  endDate   DateTime @db.Date
+  reason    String?
+
+  room Room @relation(
+    fields: [roomId],
+    references: [id],
+    onDelete: Cascade
+  )
+
+  createdByAdmin Admin? @relation(
+    "BlockedPeriodCreatedBy",
+    fields: [createdByAdminId],
+    references: [id],
+    onDelete: SetNull
+  )
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([roomId, startDate, endDate])
+  @@index([createdByAdminId])
+}
+
+model Promotion {
+  id    String  @id @default(cuid())
+  titleRo String
+  titleEn String?
+  code    String? @unique
+
+  discountPct    Decimal? @db.Decimal(5, 2)
+  discountAmount Decimal? @db.Decimal(10, 2)
+
+  minimumNights Int?
+  maximumUses   Int?
+  usedCount     Int     @default(0)
+  requiresCode  Boolean @default(false)
+
+  startDate DateTime @db.Date
+  endDate   DateTime @db.Date
+  isActive  Boolean  @default(true)
+
+  roomTypeLinks PromotionRoomType[]
+  reservations Reservation[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive])
+  @@index([startDate, endDate])
+}
+
+model PromotionRoomType {
+  promotionId String
+  roomTypeId  String
+
+  promotion Promotion @relation(
+    fields: [promotionId],
+    references: [id],
+    onDelete: Cascade
+  )
+
+  roomType RoomType @relation(
+    fields: [roomTypeId],
+    references: [id],
+    onDelete: Cascade
+  )
+
+  @@id([promotionId, roomTypeId])
+  @@index([roomTypeId])
+}
