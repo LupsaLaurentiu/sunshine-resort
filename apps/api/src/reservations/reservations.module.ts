@@ -5,6 +5,7 @@ import { ReservationsService } from './reservations.service';
 import { ReservationAllocationService } from './services/reservation-allocation.service';
 import { ReservationAvailabilityService } from './services/reservation-availability.service';
 import { ReservationPricingService } from './services/reservation-pricing.service';
+import { ReservationReviewService } from './services/reservation-review.service';
 import { ReservationStatusService } from './services/reservation-status.service';
 
 @Module({
@@ -16,6 +17,7 @@ import { ReservationStatusService } from './services/reservation-status.service'
     ReservationAvailabilityService,
     ReservationStatusService,
     ReservationAllocationService,
+    ReservationReviewService,
   ],
   exports: [
     ReservationsService,
@@ -23,6 +25,7 @@ import { ReservationStatusService } from './services/reservation-status.service'
     ReservationAvailabilityService,
     ReservationStatusService,
     ReservationAllocationService,
+    ReservationReviewService,
   ],
 })
 export class ReservationsModule {}
