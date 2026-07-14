@@ -321,19 +321,20 @@ model ReservationChange {
 }
 
 model Payment {
-  id                  String  @id @default(cuid())
+  id                  String          @id @default(cuid())
   reservationId       String
   reservationChangeId String?
+  type                PaymentType
+  status              PaymentStatus   @default(PENDING)
+  provider            PaymentProvider @default(STRIPE)
 
-  type     PaymentType
-  status   PaymentStatus   @default(PENDING)
-  provider PaymentProvider @default(STRIPE)
-
-  amount   Decimal @db.Decimal(10, 2)
-  currency String  @default("RON")
+  amount         Decimal @db.Decimal(10, 2)
+  refundedAmount Decimal @default(0) @db.Decimal(10, 2)
+  currency       String  @default("RON")
 
   stripeCheckoutSessionId String? @unique
   stripePaymentIntentId   String? @unique
+  stripeRefundId          String? @unique
   providerEventId         String? @unique
   paymentUrl              String?
 
@@ -343,8 +344,10 @@ model Payment {
   refundedAt  DateTime?
 
   failureReason String?
+  refundReason  String?
 
-  reservation       Reservation        @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+  reservation Reservation @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+
   reservationChange ReservationChange? @relation(fields: [reservationChangeId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())

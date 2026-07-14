@@ -6,7 +6,7 @@ import {
   MinLength,
 } from 'class-validator';
 
-export class CancelReservationDto {
+export class RejectReservationChangeDto {
   @IsString()
   @IsNotEmpty()
   @MinLength(3)

@@ -1,0 +1,964 @@
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import {
+  PaymentProvider,
+  PaymentStatus,
+  PaymentType,
+  Prisma,
+  ReservationChangeStatus,
+  ReservationStatus,
+} from '@prisma/client';
+import Stripe from 'stripe';
+import { PrismaService } from '../prisma/prisma.service';
+import { ReservationAllocationService } from '../reservations/services/reservation-allocation.service';
+import { ReservationChangeReviewService } from '../reservations/services/reservation-change-review.service';
+import { ReservationStatusService } from '../reservations/services/reservation-status.service';
+import { CreateCheckoutSessionDto } from './dto/create-checkout-session.dto';
+import { CreateReservationChangeCheckoutDto } from './dto/create-reservation-change-checkout.dto';
+import type { CheckoutResponse } from './types/checkout-response.type';
+
+@Injectable()
+export class PaymentsService {
+  private readonly stripe: Stripe;
+  private readonly successUrl: string;
+  private readonly cancelUrl: string;
+  private readonly webhookSecret: string;
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly configService: ConfigService,
+    private readonly allocationService: ReservationAllocationService,
+    private readonly statusService: ReservationStatusService,
+    private readonly reservationChangeReviewService: ReservationChangeReviewService,
+  ) {
+    const stripeSecretKey =
+      this.configService.get<string>('STRIPE_SECRET_KEY');
+
+    const successUrl =
+      this.configService.get<string>('STRIPE_SUCCESS_URL');
+
+    const cancelUrl =
+      this.configService.get<string>('STRIPE_CANCEL_URL');
+
+    const webhookSecret =
+      this.configService.get<string>('STRIPE_WEBHOOK_SECRET');
+
+    if (!stripeSecretKey) {
+      throw new Error(
+        'STRIPE_SECRET_KEY is not configured.',
+      );
+    }
+
+    if (!successUrl) {
+      throw new Error(
+        'STRIPE_SUCCESS_URL is not configured.',
+      );
+    }
+
+    if (!cancelUrl) {
+      throw new Error(
+        'STRIPE_CANCEL_URL is not configured.',
+      );
+    }
+
+    if (!webhookSecret) {
+      throw new Error(
+        'STRIPE_WEBHOOK_SECRET is not configured.',
+      );
+    }
+
+    this.stripe = new Stripe(stripeSecretKey);
+    this.successUrl = successUrl;
+    this.cancelUrl = cancelUrl;
+    this.webhookSecret = webhookSecret;
+  }
+
+  async createCheckoutSession(
+    dto: CreateCheckoutSessionDto,
+  ): Promise<CheckoutResponse> {
+    this.validateInitialPaymentType(dto.paymentType);
+
+    const reservation =
+      await this.prisma.reservation.findUnique({
+        where: {
+          id: dto.reservationId,
+        },
+        include: {
+          guest: true,
+          payments: {
+            where: {
+              status: PaymentStatus.PENDING,
+              reservationChangeId: null,
+            },
+          },
+        },
+      });
+
+    if (!reservation) {
+      throw new NotFoundException(
+        'Rezervarea nu a fost găsită.',
+      );
+    }
+
+    if (
+      reservation.status !==
+      ReservationStatus.APPROVED_AWAITING_PAYMENT
+    ) {
+      throw new ConflictException({
+        code: 'RESERVATION_NOT_AWAITING_PAYMENT',
+        message:
+          'Rezervarea nu se află în starea de așteptare a plății.',
+        currentStatus: reservation.status,
+      });
+    }
+
+    const now = new Date();
+
+    if (
+      !reservation.paymentExpiresAt ||
+      reservation.paymentExpiresAt <= now
+    ) {
+      throw new ConflictException({
+        code: 'RESERVATION_PAYMENT_EXPIRED',
+        message:
+          'Termenul disponibil pentru plată a expirat.',
+      });
+    }
+
+    if (reservation.paidAmount.greaterThan(0)) {
+      throw new ConflictException({
+        code: 'RESERVATION_ALREADY_PAID',
+        message:
+          'Rezervarea are deja o plată înregistrată.',
+      });
+    }
+
+    const existingPayment =
+      reservation.payments.find(
+        (payment) =>
+          payment.type === dto.paymentType &&
+          payment.paymentUrl &&
+          payment.stripeCheckoutSessionId,
+      );
+
+    if (
+      existingPayment?.paymentUrl &&
+      existingPayment.stripeCheckoutSessionId
+    ) {
+      return this.mapCheckoutResponse({
+        payment: existingPayment,
+        reservationId: reservation.id,
+        checkoutSessionId:
+          existingPayment.stripeCheckoutSessionId,
+        checkoutUrl: existingPayment.paymentUrl,
+        expiresAt:
+          reservation.paymentExpiresAt,
+      });
+    }
+
+    const amount =
+      dto.paymentType === PaymentType.FULL
+        ? reservation.totalPrice
+        : reservation.depositAmount;
+
+    if (amount.lessThanOrEqualTo(0)) {
+      throw new BadRequestException(
+        'Suma de plată trebuie să fie mai mare decât zero.',
+      );
+    }
+
+    const payment = await this.prisma.payment.create({
+      data: {
+        reservationId: reservation.id,
+        reservationChangeId: null,
+
+        type: dto.paymentType,
+        status: PaymentStatus.PENDING,
+        provider: PaymentProvider.STRIPE,
+
+        amount,
+        currency: 'RON',
+      },
+    });
+
+    try {
+      const checkoutSession =
+        await this.stripe.checkout.sessions.create({
+          mode: 'payment',
+
+          customer_email: reservation.guest.email,
+
+          client_reference_id: reservation.id,
+
+          metadata: {
+            flow: 'INITIAL_RESERVATION',
+            reservationId: reservation.id,
+            paymentId: payment.id,
+            paymentType: dto.paymentType,
+          },
+
+          payment_intent_data: {
+            metadata: {
+              flow: 'INITIAL_RESERVATION',
+              reservationId: reservation.id,
+              paymentId: payment.id,
+            },
+          },
+
+          line_items: [
+            {
+              quantity: 1,
+              price_data: {
+                currency: 'ron',
+
+                unit_amount: this.toStripeAmount(
+                  amount.toNumber(),
+                ),
+
+                product_data: {
+                  name:
+                    dto.paymentType === PaymentType.FULL
+                      ? 'Plată integrală rezervare Sunshine Resort'
+                      : 'Avans rezervare Sunshine Resort',
+
+                  description: this.buildDescription(
+                    reservation.checkInDate,
+                    reservation.checkOutDate,
+                  ),
+                },
+              },
+            },
+          ],
+
+          success_url:
+            `${this.successUrl}?session_id={CHECKOUT_SESSION_ID}`,
+
+          cancel_url:
+            `${this.cancelUrl}?reservationId=${reservation.id}`,
+
+          expires_at: Math.floor(
+            reservation.paymentExpiresAt.getTime() /
+              1000,
+          ),
+        });
+
+      if (!checkoutSession.url) {
+        throw new ConflictException(
+          'Stripe nu a returnat URL-ul sesiunii de plată.',
+        );
+      }
+
+      const updatedPayment =
+        await this.prisma.payment.update({
+          where: {
+            id: payment.id,
+          },
+          data: {
+            stripeCheckoutSessionId:
+              checkoutSession.id,
+            paymentUrl: checkoutSession.url,
+          },
+        });
+
+      return this.mapCheckoutResponse({
+        payment: updatedPayment,
+        reservationId: reservation.id,
+        checkoutSessionId: checkoutSession.id,
+        checkoutUrl: checkoutSession.url,
+        expiresAt:
+          reservation.paymentExpiresAt,
+      });
+    } catch (error: unknown) {
+      await this.markPaymentAsFailed(
+        payment.id,
+        error,
+      );
+
+      throw error;
+    }
+  }
+
+  async createReservationChangeCheckoutSession(
+    dto: CreateReservationChangeCheckoutDto,
+  ): Promise<CheckoutResponse> {
+    const change =
+      await this.prisma.reservationChange.findUnique({
+        where: {
+          id: dto.reservationChangeId,
+        },
+        include: {
+          reservation: {
+            include: {
+              guest: true,
+            },
+          },
+
+          payments: {
+            where: {
+              status: PaymentStatus.PENDING,
+              type: PaymentType.REMAINING_BALANCE,
+            },
+            orderBy: {
+              createdAt: 'desc',
+            },
+          },
+        },
+      });
+
+    if (!change) {
+      throw new NotFoundException(
+        'Solicitarea de modificare nu a fost găsită.',
+      );
+    }
+
+    if (
+      change.status !==
+      ReservationChangeStatus.APPROVED_AWAITING_PAYMENT
+    ) {
+      throw new ConflictException({
+        code: 'RESERVATION_CHANGE_NOT_AWAITING_PAYMENT',
+        message:
+          'Solicitarea de modificare nu se află în starea de așteptare a plății.',
+        currentStatus: change.status,
+      });
+    }
+
+    if (
+      change.reservation.status !==
+      ReservationStatus.CONFIRMED
+    ) {
+      throw new ConflictException({
+        code: 'RESERVATION_NOT_CONFIRMED',
+        message:
+          'Rezervarea asociată modificării nu mai este confirmată.',
+        currentStatus: change.reservation.status,
+      });
+    }
+
+    const now = new Date();
+
+    if (
+      !change.paymentExpiresAt ||
+      change.paymentExpiresAt <= now
+    ) {
+      throw new ConflictException({
+        code: 'RESERVATION_CHANGE_PAYMENT_EXPIRED',
+        message:
+          'Termenul disponibil pentru plata diferenței a expirat.',
+      });
+    }
+
+    if (change.amountDue.lessThanOrEqualTo(0)) {
+      throw new BadRequestException({
+        code: 'NO_ADDITIONAL_PAYMENT_REQUIRED',
+        message:
+          'Această modificare nu necesită o plată suplimentară.',
+      });
+    }
+
+    const existingPayment =
+      change.payments.find(
+        (payment) =>
+          payment.paymentUrl &&
+          payment.stripeCheckoutSessionId,
+      );
+
+    if (
+      existingPayment?.paymentUrl &&
+      existingPayment.stripeCheckoutSessionId
+    ) {
+      return this.mapCheckoutResponse({
+        payment: existingPayment,
+        reservationId: change.reservationId,
+        checkoutSessionId:
+          existingPayment.stripeCheckoutSessionId,
+        checkoutUrl: existingPayment.paymentUrl,
+        expiresAt: change.paymentExpiresAt,
+      });
+    }
+
+    const payment = await this.prisma.payment.create({
+      data: {
+        reservationId: change.reservationId,
+        reservationChangeId: change.id,
+
+        type: PaymentType.REMAINING_BALANCE,
+        status: PaymentStatus.PENDING,
+        provider: PaymentProvider.STRIPE,
+
+        amount: change.amountDue,
+        currency: 'RON',
+      },
+    });
+
+    try {
+      const checkoutSession =
+        await this.stripe.checkout.sessions.create({
+          mode: 'payment',
+
+          customer_email:
+            change.reservation.guest.email,
+
+          client_reference_id:
+            change.reservationId,
+
+          metadata: {
+            flow: 'RESERVATION_CHANGE',
+            reservationId:
+              change.reservationId,
+            reservationChangeId: change.id,
+            paymentId: payment.id,
+            paymentType:
+              PaymentType.REMAINING_BALANCE,
+          },
+
+          payment_intent_data: {
+            metadata: {
+              flow: 'RESERVATION_CHANGE',
+              reservationId:
+                change.reservationId,
+              reservationChangeId: change.id,
+              paymentId: payment.id,
+            },
+          },
+
+          line_items: [
+            {
+              quantity: 1,
+              price_data: {
+                currency: 'ron',
+
+                unit_amount: this.toStripeAmount(
+                  change.amountDue.toNumber(),
+                ),
+
+                product_data: {
+                  name:
+                    'Diferență de preț modificare rezervare Sunshine Resort',
+
+                  description:
+                    `Modificare sejur: ${this.formatDate(
+                      change.requestedCheckInDate,
+                    )} – ${this.formatDate(
+                      change.requestedCheckOutDate,
+                    )}`,
+                },
+              },
+            },
+          ],
+
+          success_url:
+            `${this.successUrl}?session_id={CHECKOUT_SESSION_ID}`,
+
+          cancel_url:
+            `${this.cancelUrl}?reservationChangeId=${change.id}`,
+
+          expires_at: Math.floor(
+            change.paymentExpiresAt.getTime() /
+              1000,
+          ),
+        });
+
+      if (!checkoutSession.url) {
+        throw new ConflictException(
+          'Stripe nu a returnat URL-ul sesiunii de plată.',
+        );
+      }
+
+      const updatedPayment =
+        await this.prisma.payment.update({
+          where: {
+            id: payment.id,
+          },
+          data: {
+            stripeCheckoutSessionId:
+              checkoutSession.id,
+            paymentUrl: checkoutSession.url,
+          },
+        });
+
+      return this.mapCheckoutResponse({
+        payment: updatedPayment,
+        reservationId: change.reservationId,
+        checkoutSessionId: checkoutSession.id,
+        checkoutUrl: checkoutSession.url,
+        expiresAt: change.paymentExpiresAt,
+      });
+    } catch (error: unknown) {
+      await this.markPaymentAsFailed(
+        payment.id,
+        error,
+      );
+
+      throw error;
+    }
+  }
+
+  async handleWebhook(
+    rawBody: Buffer | undefined,
+    stripeSignature: string | undefined,
+  ): Promise<{ received: true }> {
+    if (!rawBody) {
+      throw new BadRequestException(
+        'Body-ul brut al webhook-ului lipsește.',
+      );
+    }
+
+    if (!stripeSignature) {
+      throw new BadRequestException(
+        'Headerul Stripe-Signature lipsește.',
+      );
+    }
+
+    let event: Stripe.Event;
+
+    try {
+      event = this.stripe.webhooks.constructEvent(
+        rawBody,
+        stripeSignature,
+        this.webhookSecret,
+      );
+    } catch (error: unknown) {
+      throw new BadRequestException(
+        error instanceof Error
+          ? `Semnătura webhook-ului este invalidă: ${error.message}`
+          : 'Semnătura webhook-ului este invalidă.',
+      );
+    }
+
+    switch (event.type) {
+      case 'checkout.session.completed':
+      case 'checkout.session.async_payment_succeeded': {
+        const session = event.data.object;
+
+        if (session.payment_status === 'paid') {
+          await this.processSuccessfulCheckout(
+            session,
+            event.id,
+          );
+        }
+
+        break;
+      }
+
+      case 'checkout.session.expired': {
+        await this.processExpiredCheckout(
+          event.data.object,
+          event.id,
+        );
+        break;
+      }
+
+      case 'checkout.session.async_payment_failed': {
+        await this.processFailedCheckout(
+          event.data.object,
+          event.id,
+          'Plata asincronă Stripe a eșuat.',
+        );
+        break;
+      }
+
+      default:
+        break;
+    }
+
+    return {
+      received: true,
+    };
+  }
+
+  private async processSuccessfulCheckout(
+    session: Stripe.Checkout.Session,
+    stripeEventId: string,
+  ): Promise<void> {
+    const paymentId = session.metadata?.paymentId;
+    const reservationId =
+      session.metadata?.reservationId;
+
+    if (!paymentId || !reservationId) {
+      throw new BadRequestException(
+        'Metadata webhook-ului este incompletă.',
+      );
+    }
+
+    try {
+      await this.prisma.$transaction(
+        async (transaction) => {
+          const payment =
+            await transaction.payment.findUnique({
+              where: {
+                id: paymentId,
+              },
+            });
+
+          if (!payment) {
+            throw new NotFoundException(
+              'Plata asociată webhook-ului nu a fost găsită.',
+            );
+          }
+
+          if (
+            payment.reservationId !== reservationId ||
+            payment.stripeCheckoutSessionId !==
+              session.id
+          ) {
+            throw new ConflictException({
+              code: 'PAYMENT_WEBHOOK_MISMATCH',
+              message:
+                'Datele sesiunii Stripe nu corespund plății interne.',
+            });
+          }
+
+          const reservation =
+            await transaction.reservation.findUnique({
+              where: {
+                id: reservationId,
+              },
+            });
+
+          if (!reservation) {
+            throw new NotFoundException(
+              'Rezervarea asociată plății nu a fost găsită.',
+            );
+          }
+
+          const isReservationChangePayment =
+            payment.type ===
+              PaymentType.REMAINING_BALANCE &&
+            payment.reservationChangeId !== null;
+
+          /**
+           * Webhook idempotent.
+           */
+          if (payment.status === PaymentStatus.PAID) {
+            if (isReservationChangePayment) {
+              const change =
+                await transaction.reservationChange.findUnique({
+                  where: {
+                    id: payment.reservationChangeId!,
+                  },
+                  select: {
+                    status: true,
+                  },
+                });
+
+              if (
+                change?.status ===
+                ReservationChangeStatus.APPLIED
+              ) {
+                return;
+              }
+            } else if (
+              reservation.status ===
+              ReservationStatus.CONFIRMED
+            ) {
+              return;
+            }
+          }
+
+          if (
+            !isReservationChangePayment &&
+            reservation.status !==
+              ReservationStatus.APPROVED_AWAITING_PAYMENT
+          ) {
+            throw new ConflictException({
+              code: 'RESERVATION_NOT_AWAITING_PAYMENT',
+              message:
+                'Rezervarea nu mai așteaptă confirmarea plății.',
+              currentStatus: reservation.status,
+            });
+          }
+
+          if (
+            isReservationChangePayment &&
+            reservation.status !==
+              ReservationStatus.CONFIRMED
+          ) {
+            throw new ConflictException({
+              code: 'RESERVATION_NOT_CONFIRMED',
+              message:
+                'Rezervarea asociată modificării nu mai este confirmată.',
+              currentStatus: reservation.status,
+            });
+          }
+
+          const stripeAmount =
+            session.amount_total ?? 0;
+
+          const expectedAmount =
+            this.toStripeAmount(
+              payment.amount.toNumber(),
+            );
+
+          if (stripeAmount !== expectedAmount) {
+            throw new ConflictException({
+              code: 'STRIPE_AMOUNT_MISMATCH',
+              message:
+                'Suma achitată prin Stripe nu corespunde plății interne.',
+              expectedAmount,
+              receivedAmount: stripeAmount,
+            });
+          }
+
+          const paymentIntentId =
+            typeof session.payment_intent === 'string'
+              ? session.payment_intent
+              : session.payment_intent?.id;
+
+          if (payment.status !== PaymentStatus.PAID) {
+            await transaction.payment.update({
+              where: {
+                id: payment.id,
+              },
+              data: {
+                status: PaymentStatus.PAID,
+                paidAt: new Date(),
+                providerEventId: stripeEventId,
+
+                stripePaymentIntentId:
+                  paymentIntentId ?? null,
+
+                failureReason: null,
+              },
+            });
+          }
+
+          if (isReservationChangePayment) {
+            if (!payment.reservationChangeId) {
+              throw new ConflictException({
+                code: 'RESERVATION_CHANGE_REFERENCE_MISSING',
+                message:
+                  'Plata diferenței nu are asociată solicitarea de modificare.',
+              });
+            }
+
+            await this.reservationChangeReviewService
+              .applyPaidChangeInTransaction(
+                transaction,
+                payment.reservationChangeId,
+                new Date(),
+              );
+
+            await transaction.reservation.update({
+              where: {
+                id: reservation.id,
+              },
+              data: {
+                paidAmount:
+                  reservation.paidAmount.plus(
+                    payment.amount,
+                  ),
+              },
+            });
+
+            return;
+          }
+
+          await this.allocationService.allocateRoomsInTransaction(
+            transaction,
+            reservation.id,
+          );
+
+          const confirmationUpdate =
+            this.statusService.buildConfirmationUpdate(
+              reservation.status,
+            );
+
+          await transaction.reservation.update({
+            where: {
+              id: reservation.id,
+            },
+            data: {
+              ...confirmationUpdate,
+              paidAmount: payment.amount,
+            },
+          });
+        },
+        {
+          isolationLevel:
+            Prisma.TransactionIsolationLevel.Serializable,
+        },
+      );
+    } catch (error: unknown) {
+      if (
+        error instanceof
+          Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2034'
+      ) {
+        throw new ConflictException({
+          code: 'PAYMENT_CONFIRMATION_CONFLICT',
+          message:
+            'Confirmarea plății a intrat în conflict cu o altă operațiune. Stripe va reîncerca webhook-ul.',
+        });
+      }
+
+      throw error;
+    }
+  }
+
+  private async processExpiredCheckout(
+    session: Stripe.Checkout.Session,
+    stripeEventId: string,
+  ): Promise<void> {
+    const paymentId = session.metadata?.paymentId;
+
+    if (!paymentId) {
+      return;
+    }
+
+    const payment =
+      await this.prisma.payment.findUnique({
+        where: {
+          id: paymentId,
+        },
+      });
+
+    if (!payment) {
+      return;
+    }
+
+    await this.prisma.payment.updateMany({
+      where: {
+        id: payment.id,
+        status: PaymentStatus.PENDING,
+      },
+      data: {
+        status: PaymentStatus.CANCELLED,
+        cancelledAt: new Date(),
+        providerEventId: stripeEventId,
+        failureReason:
+          'Sesiunea Stripe Checkout a expirat.',
+      },
+    });
+
+    if (payment.reservationChangeId) {
+      await this.prisma.reservationChange.updateMany({
+        where: {
+          id: payment.reservationChangeId,
+          status:
+            ReservationChangeStatus.APPROVED_AWAITING_PAYMENT,
+        },
+        data: {
+          status: ReservationChangeStatus.EXPIRED,
+          expiredAt: new Date(),
+          paymentExpiresAt: null,
+        },
+      });
+    }
+  }
+
+  private async processFailedCheckout(
+    session: Stripe.Checkout.Session,
+    stripeEventId: string,
+    reason: string,
+  ): Promise<void> {
+    const paymentId = session.metadata?.paymentId;
+
+    if (!paymentId) {
+      return;
+    }
+
+    await this.prisma.payment.updateMany({
+      where: {
+        id: paymentId,
+        status: PaymentStatus.PENDING,
+      },
+      data: {
+        status: PaymentStatus.FAILED,
+        failedAt: new Date(),
+        providerEventId: stripeEventId,
+        failureReason: reason,
+      },
+    });
+  }
+
+  private validateInitialPaymentType(
+    paymentType: PaymentType,
+  ): void {
+    const allowedTypes: PaymentType[] = [
+      PaymentType.DEPOSIT,
+      PaymentType.FULL,
+    ];
+
+    if (!allowedTypes.includes(paymentType)) {
+      throw new BadRequestException({
+        code: 'INVALID_INITIAL_PAYMENT_TYPE',
+        message:
+          'Pentru rezervarea inițială poți alege doar plata avansului sau plata integrală.',
+      });
+    }
+  }
+
+  private async markPaymentAsFailed(
+    paymentId: string,
+    error: unknown,
+  ): Promise<void> {
+    await this.prisma.payment.update({
+      where: {
+        id: paymentId,
+      },
+      data: {
+        status: PaymentStatus.FAILED,
+        failedAt: new Date(),
+
+        failureReason:
+          error instanceof Error
+            ? error.message
+            : 'Eroare necunoscută la crearea checkout-ului.',
+      },
+    });
+  }
+
+  private mapCheckoutResponse(params: {
+    payment: {
+      id: string;
+      type: PaymentType;
+      status: PaymentStatus;
+      amount: Prisma.Decimal;
+      currency: string;
+    };
+    reservationId: string;
+    checkoutSessionId: string;
+    checkoutUrl: string;
+    expiresAt: Date | null;
+  }): CheckoutResponse {
+    return {
+      paymentId: params.payment.id,
+      reservationId: params.reservationId,
+      paymentType: params.payment.type,
+      paymentStatus: params.payment.status,
+      amount: params.payment.amount.toNumber(),
+      currency: params.payment.currency,
+      checkoutSessionId:
+        params.checkoutSessionId,
+      checkoutUrl: params.checkoutUrl,
+      expiresAt:
+        params.expiresAt?.toISOString() ?? null,
+    };
+  }
+
+  private toStripeAmount(amount: number): number {
+    return new Prisma.Decimal(amount)
+      .mul(100)
+      .toDecimalPlaces(0)
+      .toNumber();
+  }
+
+  private buildDescription(
+    checkInDate: Date,
+    checkOutDate: Date,
+  ): string {
+    return `Sejur ${this.formatDate(
+      checkInDate,
+    )} – ${this.formatDate(checkOutDate)}`;
+  }
+
+  private formatDate(date: Date): string {
+    return date.toISOString().slice(0, 10);
+  }
+}

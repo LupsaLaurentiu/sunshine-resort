@@ -1,18 +1,10 @@
 import {
-  IsNotEmpty,
   IsOptional,
   IsString,
   MaxLength,
-  MinLength,
 } from 'class-validator';
 
-export class CancelReservationDto {
-  @IsString()
-  @IsNotEmpty()
-  @MinLength(3)
-  @MaxLength(500)
-  reason!: string;
-
+export class ApproveReservationChangeDto {
   @IsOptional()
   @IsString()
   @MaxLength(1000)
