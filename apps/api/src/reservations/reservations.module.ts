@@ -8,7 +8,10 @@ import { ReservationAvailabilityService } from './services/reservation-availabil
 import { ReservationCancellationService } from './services/reservation-cancellation.service';
 import { ReservationChangeReviewService } from './services/reservation-change-review.service';
 import { ReservationChangeService } from './services/reservation-change.service';
+import { ReservationCheckInService } from './services/reservation-checkin.service';
+import { ReservationExpirationService } from './services/reservation-expiration.service';
 import { ReservationManualService } from './services/reservation-manual.service';
+import { ReservationNotificationService } from './services/reservation-notification.service';
 import { ReservationPricingService } from './services/reservation-pricing.service';
 import { ReservationReviewService } from './services/reservation-review.service';
 import { ReservationStatusService } from './services/reservation-status.service';
@@ -32,6 +35,9 @@ import { ReservationStatusService } from './services/reservation-status.service'
     ReservationManualService,
     ReservationChangeService,
     ReservationChangeReviewService,
+    ReservationCheckInService,
+    ReservationExpirationService,
+    ReservationNotificationService,
   ],
 
   exports: [
@@ -45,6 +51,9 @@ import { ReservationStatusService } from './services/reservation-status.service'
     ReservationManualService,
     ReservationChangeService,
     ReservationChangeReviewService,
+    ReservationCheckInService,
+    ReservationExpirationService,
+    ReservationNotificationService,
   ],
 })
 export class ReservationsModule {}

@@ -185,6 +185,9 @@ model Reservation {
   approvalExpiresAt DateTime?
   paymentExpiresAt  DateTime?
 
+  paymentAccessTokenHash      String?   @unique
+  paymentAccessTokenExpiresAt DateTime?
+
   approvedAt   DateTime?
   rejectedAt   DateTime?
   cancelledAt  DateTime?
@@ -211,6 +214,7 @@ model Reservation {
   @@index([approvedByAdminId])
   @@index([approvalExpiresAt])
   @@index([paymentExpiresAt])
+  @@index([paymentAccessTokenExpiresAt])
 }
 
 model ReservationRoom {

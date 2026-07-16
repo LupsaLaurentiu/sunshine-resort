@@ -14,25 +14,27 @@ import type { CurrentAdminData } from '../common/decorators/current-admin.decora
 import { ApproveReservationDto } from './dto/approve-reservation.dto';
 import { CancelReservationDto } from './dto/cancel-reservation.dto';
 import { CreateManualReservationDto } from './dto/create-manual-reservation.dto';
+import { CreateReservationChangeDto } from './dto/create-reservation-change.dto';
 import { CreateReservationDto } from './dto/create-reservation.dto';
 import { FindReservationsQueryDto } from './dto/find-reservations-query.dto';
 import { RejectReservationDto } from './dto/reject-reservation.dto';
 import { ReservationsService } from './reservations.service';
 import { ReservationCancellationService } from './services/reservation-cancellation.service';
+import { ReservationChangeService } from './services/reservation-change.service';
+import { ReservationCheckInService } from './services/reservation-checkin.service';
 import { ReservationManualService } from './services/reservation-manual.service';
 import { ReservationReviewService } from './services/reservation-review.service';
-import { CreateReservationChangeDto } from './dto/create-reservation-change.dto';
-import { ReservationChangeService } from './services/reservation-change.service';
 
 @Controller('reservations')
 export class ReservationsController {
   constructor(
-  private readonly reservationsService: ReservationsService,
-  private readonly reservationReviewService: ReservationReviewService,
-  private readonly reservationCancellationService: ReservationCancellationService,
-  private readonly reservationManualService: ReservationManualService,
-  private readonly reservationChangeService: ReservationChangeService,
-) {}
+    private readonly reservationsService: ReservationsService,
+    private readonly reservationReviewService: ReservationReviewService,
+    private readonly reservationCancellationService: ReservationCancellationService,
+    private readonly reservationManualService: ReservationManualService,
+    private readonly reservationChangeService: ReservationChangeService,
+    private readonly reservationCheckInService: ReservationCheckInService,
+  ) {}
 
   /**
    * Cerere publică de rezervare.
@@ -43,8 +45,7 @@ export class ReservationsController {
   }
 
   /**
-   * Rezervare creată manual de admin.
-   * Trebuie declarată înaintea rutei GET :id.
+   * Rezervare creată manual de administrator.
    */
   @UseGuards(JwtAuthGuard)
   @Post('manual')
@@ -58,6 +59,9 @@ export class ReservationsController {
     );
   }
 
+  /**
+   * Listarea rezervărilor pentru admin.
+   */
   @UseGuards(JwtAuthGuard)
   @Get()
   findAll(
@@ -66,12 +70,63 @@ export class ReservationsController {
     return this.reservationsService.findAll(query);
   }
 
+  /**
+   * Cerere de modificare a perioadei.
+   */
+  @UseGuards(JwtAuthGuard)
+  @Post(':id/change')
+  createChangeRequest(
+    @Param('id') id: string,
+    @Body() dto: CreateReservationChangeDto,
+  ) {
+    return this.reservationChangeService.create(
+      id,
+      dto,
+    );
+  }
+
+  /**
+   * Check-in administrativ.
+   */
+  @UseGuards(JwtAuthGuard)
+  @Patch(':id/check-in')
+  checkIn(
+    @Param('id') id: string,
+    @CurrentAdmin() admin: CurrentAdminData,
+  ) {
+    return this.reservationCheckInService.checkIn(
+      id,
+      admin.id,
+    );
+  }
+
+  /**
+   * Check-out administrativ.
+   */
+  @UseGuards(JwtAuthGuard)
+  @Patch(':id/check-out')
+  checkOut(
+    @Param('id') id: string,
+    @CurrentAdmin() admin: CurrentAdminData,
+  ) {
+    return this.reservationCheckInService.checkOut(
+      id,
+      admin.id,
+    );
+  }
+
+  /**
+   * Detaliile unei rezervări.
+   */
   @UseGuards(JwtAuthGuard)
   @Get(':id')
   findById(@Param('id') id: string) {
     return this.reservationsService.findById(id);
   }
 
+  /**
+   * Aprobare cerere inițială.
+   */
   @UseGuards(JwtAuthGuard)
   @Patch(':id/approve')
   approve(
@@ -86,6 +141,9 @@ export class ReservationsController {
     );
   }
 
+  /**
+   * Respingere cerere inițială.
+   */
   @UseGuards(JwtAuthGuard)
   @Patch(':id/reject')
   reject(
@@ -100,6 +158,9 @@ export class ReservationsController {
     );
   }
 
+  /**
+   * Anularea rezervării.
+   */
   @UseGuards(JwtAuthGuard)
   @Patch(':id/cancel')
   cancel(
@@ -110,18 +171,6 @@ export class ReservationsController {
     return this.reservationCancellationService.cancel(
       id,
       admin.id,
-      dto,
-    );
-  }
-
-  @UseGuards(JwtAuthGuard)
-  @Post(':id/change')
-  createChangeRequest(
-    @Param('id') id: string,
-    @Body() dto: CreateReservationChangeDto,
-  ) {
-    return this.reservationChangeService.create(
-      id,
       dto,
     );
   }

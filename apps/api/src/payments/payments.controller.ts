@@ -19,6 +19,10 @@ export class PaymentsController {
     private readonly paymentsService: PaymentsService,
   ) {}
 
+  /**
+   * Checkout pentru avansul sau plata integrală
+   * a unei rezervări inițiale.
+   */
   @Post('checkout')
   @HttpCode(HttpStatus.OK)
   createCheckoutSession(
@@ -27,6 +31,10 @@ export class PaymentsController {
     return this.paymentsService.createCheckoutSession(dto);
   }
 
+  /**
+   * Checkout pentru diferența de preț rezultată
+   * din modificarea unei rezervări.
+   */
   @Post('reservation-change-checkout')
   @HttpCode(HttpStatus.OK)
   createReservationChangeCheckout(
@@ -37,6 +45,10 @@ export class PaymentsController {
     );
   }
 
+  /**
+   * Webhook Stripe. Necesită raw body pentru verificarea
+   * semnăturii Stripe.
+   */
   @Post('webhook')
   @HttpCode(HttpStatus.OK)
   handleWebhook(

@@ -17,6 +17,7 @@ import { ReservationPricingService } from './services/reservation-pricing.servic
 import { ReservationStatusService } from './services/reservation-status.service';
 import type { CreateReservationResponse } from './types/create-reservation-response.type';
 import type { ReservationListResponse } from './types/reservation-list-response.type';
+import { ReservationNotificationService } from './services/reservation-notification.service';
 
 const INVENTORY_BLOCKING_STATUSES: ReservationStatus[] = [
   ReservationStatus.PENDING_APPROVAL,
@@ -32,6 +33,7 @@ export class ReservationsService {
     private readonly availabilityService: ReservationAvailabilityService,
     private readonly pricingService: ReservationPricingService,
     private readonly statusService: ReservationStatusService,
+    private readonly reservationNotificationService: ReservationNotificationService,
   ) {}
 
   async create(
@@ -99,6 +101,7 @@ export class ReservationsService {
                 subtotalPrice: pricing.subtotalPrice,
                 discountAmount: pricing.discountAmount,
                 totalPrice: pricing.totalPrice,
+
                 depositPercentage: 50,
                 depositAmount: pricing.depositAmount,
                 paidAmount: 0,
@@ -107,6 +110,7 @@ export class ReservationsService {
 
                 approvalExpiresAt:
                   statusUpdate.approvalExpiresAt,
+
                 paymentExpiresAt: null,
               },
             });
@@ -115,7 +119,8 @@ export class ReservationsService {
             pricing.rooms.flatMap((pricedRoom) => {
               const selectedRoom = dto.rooms.find(
                 (room) =>
-                  room.roomTypeId === pricedRoom.roomTypeId,
+                  room.roomTypeId ===
+                  pricedRoom.roomTypeId,
               );
 
               if (!selectedRoom) {
@@ -127,24 +132,38 @@ export class ReservationsService {
               }
 
               return Array.from(
-                { length: pricedRoom.quantity },
+                {
+                  length: pricedRoom.quantity,
+                },
                 () => ({
-                  reservationId: createdReservation.id,
-                  roomTypeId: pricedRoom.roomTypeId,
+                  reservationId:
+                    createdReservation.id,
+
+                  roomTypeId:
+                    pricedRoom.roomTypeId,
+
                   roomId: null,
 
-                  adults: selectedRoom.adultsPerRoom,
+                  adults:
+                    selectedRoom.adultsPerRoom,
 
-                  weekdayNights: pricedRoom.weekdayNights,
-                  weekendNights: pricedRoom.weekendNights,
-                  nights: pricedRoom.nights,
+                  weekdayNights:
+                    pricedRoom.weekdayNights,
+
+                  weekendNights:
+                    pricedRoom.weekendNights,
+
+                  nights:
+                    pricedRoom.nights,
 
                   weekdayPricePerNight:
                     pricedRoom.weekdayAveragePrice,
+
                   weekendPricePerNight:
                     pricedRoom.weekendAveragePrice,
 
-                  subtotal: pricedRoom.pricePerUnit,
+                  subtotal:
+                    pricedRoom.pricePerUnit,
                 }),
               );
             });
@@ -159,9 +178,13 @@ export class ReservationsService {
             },
             include: {
               guest: true,
+
               rooms: {
                 include: {
                   roomType: true,
+                },
+                orderBy: {
+                  id: 'asc',
                 },
               },
             },
@@ -179,23 +202,68 @@ export class ReservationsService {
         );
       }
 
+      const roomNames = reservation.rooms.map(
+        (reservationRoom) =>
+          reservation.locale === Locale.EN
+            ? reservationRoom.roomType.nameEn
+            : reservationRoom.roomType.nameRo,
+      );
+
+      await this.reservationNotificationService.sendReservationCreated(
+        {
+          reservationId: reservation.id,
+
+          guest: {
+            firstName: reservation.guest.firstName,
+            email: reservation.guest.email,
+          },
+
+          locale: reservation.locale,
+
+          checkInDate: reservation.checkInDate,
+          checkOutDate: reservation.checkOutDate,
+
+          nights: reservation.nights,
+          adults: reservation.adults,
+
+          roomNames,
+
+          approvalExpiresAt:
+            reservation.approvalExpiresAt,
+        },
+      );
+
       return {
         id: reservation.id,
         status: reservation.status,
-        checkIn: this.formatDate(reservation.checkInDate),
-        checkOut: this.formatDate(reservation.checkOutDate),
+
+        checkIn: this.formatDate(
+          reservation.checkInDate,
+        ),
+
+        checkOut: this.formatDate(
+          reservation.checkOutDate,
+        ),
+
         nights: reservation.nights,
         adults: reservation.adults,
-        totalPrice: reservation.totalPrice.toNumber(),
-        depositAmount: reservation.depositAmount.toNumber(),
+
+        totalPrice:
+          reservation.totalPrice.toNumber(),
+
+        depositAmount:
+          reservation.depositAmount.toNumber(),
+
         approvalExpiresAt:
           reservation.approvalExpiresAt.toISOString(),
+
         message:
           'Cererea de rezervare a fost înregistrată și așteaptă aprobarea administratorului.',
       };
     } catch (error: unknown) {
       if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error instanceof
+          Prisma.PrismaClientKnownRequestError &&
         error.code === 'P2034'
       ) {
         throw new ConflictException({
