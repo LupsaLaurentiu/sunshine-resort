@@ -194,6 +194,9 @@ model Reservation {
   confirmedAt  DateTime?
   checkedInAt  DateTime?
   checkedOutAt DateTime?
+  sevenDayReminderSentAt DateTime?
+  oneDayReminderSentAt   DateTime?
+  postStayEmailSentAt    DateTime?
 
   guest           Guest  @relation(fields: [guestId], references: [id])
   createdByAdmin  Admin? @relation("ReservationCreatedBy", fields: [createdByAdminId], references: [id], onDelete: SetNull)
@@ -215,6 +218,9 @@ model Reservation {
   @@index([approvalExpiresAt])
   @@index([paymentExpiresAt])
   @@index([paymentAccessTokenExpiresAt])
+  @@index([sevenDayReminderSentAt])
+  @@index([oneDayReminderSentAt])
+  @@index([postStayEmailSentAt])
 }
 
 model ReservationRoom {

@@ -88,6 +88,102 @@ export type ReservationRejectedNotificationParams = {
   rejectionReason: string;
 };
 
+export type ReservationCancelledNotificationParams = {
+  reservationId: string;
+
+  guest: {
+    firstName: string;
+    email: string;
+  };
+
+  locale: Locale;
+
+  checkInDate: Date;
+  checkOutDate: Date;
+
+  roomNames: string[];
+
+  cancellationReason: string;
+
+  previouslyPaidAmount: number;
+  refundedAmount: number;
+  retainedAmount: number;
+};
+
+export type SevenDayReminderNotificationParams = {
+  reservationId: string;
+
+  guest: {
+    firstName: string;
+    email: string;
+  };
+
+  locale: Locale;
+
+  checkInDate: Date;
+  checkOutDate: Date;
+
+  checkInTime: string;
+  checkOutTime: string;
+
+  nights: number;
+  adults: number;
+
+  roomNames: string[];
+
+  resortAddress: string;
+  resortPhone: string;
+
+  mapsUrl?: string;
+};
+
+export type OneDayReminderNotificationParams = {
+  reservationId: string;
+
+  guest: {
+    firstName: string;
+    email: string;
+  };
+
+  locale: Locale;
+
+  checkInDate: Date;
+  checkOutDate: Date;
+
+  checkInTime: string;
+  checkOutTime: string;
+
+  roomNames: string[];
+
+  resortAddress: string;
+  resortPhone: string;
+
+  parkingInstructions?: string;
+  accessInstructions?: string;
+
+  mapsUrl?: string;
+};
+
+export type PostStayNotificationParams = {
+  reservationId: string;
+
+  guest: {
+    firstName: string;
+    email: string;
+  };
+
+  locale: Locale;
+
+  checkInDate: Date;
+  checkOutDate: Date;
+
+  roomNames: string[];
+
+  googleReviewUrl?: string;
+  bookingReviewUrl?: string;
+  directBookingUrl?: string;
+};
+
 @Injectable()
 export class ReservationNotificationService {
   private readonly logger = new Logger(
@@ -104,28 +200,45 @@ export class ReservationNotificationService {
     try {
       await this.emailService.sendReservationCreatedEmail({
         to: params.guest.email,
-        guestFirstName: params.guest.firstName,
 
-        reservationId: params.reservationId,
+        guestFirstName:
+          params.guest.firstName,
 
-        checkIn: params.checkInDate,
-        checkOut: params.checkOutDate,
+        reservationId:
+          params.reservationId,
 
-        nights: params.nights,
-        adults: params.adults,
+        checkIn:
+          params.checkInDate,
 
-        roomNames: params.roomNames,
+        checkOut:
+          params.checkOutDate,
+
+        nights:
+          params.nights,
+
+        adults:
+          params.adults,
+
+        roomNames:
+          params.roomNames,
 
         approvalDeadline:
           params.approvalExpiresAt ?? null,
 
-        locale: this.mapLocale(params.locale),
+        locale:
+          this.mapLocale(params.locale),
       });
     } catch (error: unknown) {
       this.logNotificationFailure({
-        notificationType: 'reservation-created',
-        reservationId: params.reservationId,
-        recipient: params.guest.email,
+        notificationType:
+          'reservation-created',
+
+        reservationId:
+          params.reservationId,
+
+        recipient:
+          params.guest.email,
+
         error,
       });
     }
@@ -137,31 +250,54 @@ export class ReservationNotificationService {
     try {
       await this.emailService.sendReservationApprovedEmail({
         to: params.guest.email,
-        guestFirstName: params.guest.firstName,
 
-        reservationId: params.reservationId,
+        guestFirstName:
+          params.guest.firstName,
 
-        checkIn: params.checkInDate,
-        checkOut: params.checkOutDate,
+        reservationId:
+          params.reservationId,
 
-        nights: params.nights,
-        adults: params.adults,
+        checkIn:
+          params.checkInDate,
 
-        roomNames: params.roomNames,
+        checkOut:
+          params.checkOutDate,
 
-        totalPrice: params.totalPrice,
-        depositAmount: params.depositAmount,
+        nights:
+          params.nights,
 
-        paymentDeadline: params.paymentDeadline,
-        paymentUrl: params.paymentUrl,
+        adults:
+          params.adults,
 
-        locale: this.mapLocale(params.locale),
+        roomNames:
+          params.roomNames,
+
+        totalPrice:
+          params.totalPrice,
+
+        depositAmount:
+          params.depositAmount,
+
+        paymentDeadline:
+          params.paymentDeadline,
+
+        paymentUrl:
+          params.paymentUrl,
+
+        locale:
+          this.mapLocale(params.locale),
       });
     } catch (error: unknown) {
       this.logNotificationFailure({
-        notificationType: 'reservation-approved',
-        reservationId: params.reservationId,
-        recipient: params.guest.email,
+        notificationType:
+          'reservation-approved',
+
+        reservationId:
+          params.reservationId,
+
+        recipient:
+          params.guest.email,
+
         error,
       });
     }
@@ -173,28 +309,48 @@ export class ReservationNotificationService {
     try {
       await this.emailService.sendPaymentConfirmedEmail({
         to: params.guest.email,
-        guestFirstName: params.guest.firstName,
 
-        reservationId: params.reservationId,
+        guestFirstName:
+          params.guest.firstName,
 
-        checkIn: params.checkInDate,
-        checkOut: params.checkOutDate,
+        reservationId:
+          params.reservationId,
 
-        nights: params.nights,
-        adults: params.adults,
+        checkIn:
+          params.checkInDate,
 
-        roomNames: params.roomNames,
+        checkOut:
+          params.checkOutDate,
 
-        amountPaid: params.amountPaid,
-        totalPrice: params.totalPrice,
+        nights:
+          params.nights,
 
-        locale: this.mapLocale(params.locale),
+        adults:
+          params.adults,
+
+        roomNames:
+          params.roomNames,
+
+        amountPaid:
+          params.amountPaid,
+
+        totalPrice:
+          params.totalPrice,
+
+        locale:
+          this.mapLocale(params.locale),
       });
     } catch (error: unknown) {
       this.logNotificationFailure({
-        notificationType: 'payment-confirmed',
-        reservationId: params.reservationId,
-        recipient: params.guest.email,
+        notificationType:
+          'payment-confirmed',
+
+        reservationId:
+          params.reservationId,
+
+        recipient:
+          params.guest.email,
+
         error,
       });
     }
@@ -206,32 +362,289 @@ export class ReservationNotificationService {
     try {
       await this.emailService.sendReservationRejectedEmail({
         to: params.guest.email,
-        guestFirstName: params.guest.firstName,
 
-        reservationId: params.reservationId,
+        guestFirstName:
+          params.guest.firstName,
 
-        checkIn: params.checkInDate,
-        checkOut: params.checkOutDate,
+        reservationId:
+          params.reservationId,
 
-        roomNames: params.roomNames,
+        checkIn:
+          params.checkInDate,
+
+        checkOut:
+          params.checkOutDate,
+
+        roomNames:
+          params.roomNames,
 
         rejectionReason:
           params.rejectionReason,
 
-        locale: this.mapLocale(params.locale),
+        locale:
+          this.mapLocale(params.locale),
       });
     } catch (error: unknown) {
       this.logNotificationFailure({
-        notificationType: 'reservation-rejected',
-        reservationId: params.reservationId,
-        recipient: params.guest.email,
+        notificationType:
+          'reservation-rejected',
+
+        reservationId:
+          params.reservationId,
+
+        recipient:
+          params.guest.email,
+
         error,
       });
     }
   }
 
-  private mapLocale(locale: Locale): 'RO' | 'EN' {
-    return locale === Locale.EN ? 'EN' : 'RO';
+  async sendReservationCancelled(
+    params: ReservationCancelledNotificationParams,
+  ): Promise<void> {
+    try {
+      await this.emailService.sendReservationCancelledEmail({
+        to: params.guest.email,
+
+        guestFirstName:
+          params.guest.firstName,
+
+        reservationId:
+          params.reservationId,
+
+        checkIn:
+          params.checkInDate,
+
+        checkOut:
+          params.checkOutDate,
+
+        roomNames:
+          params.roomNames,
+
+        cancellationReason:
+          params.cancellationReason,
+
+        previouslyPaidAmount:
+          params.previouslyPaidAmount,
+
+        refundedAmount:
+          params.refundedAmount,
+
+        retainedAmount:
+          params.retainedAmount,
+
+        locale:
+          this.mapLocale(params.locale),
+      });
+    } catch (error: unknown) {
+      this.logNotificationFailure({
+        notificationType:
+          'reservation-cancelled',
+
+        reservationId:
+          params.reservationId,
+
+        recipient:
+          params.guest.email,
+
+        error,
+      });
+    }
+  }
+
+  async sendSevenDayReminder(
+    params: SevenDayReminderNotificationParams,
+  ): Promise<boolean> {
+    try {
+      await this.emailService.sendSevenDayReminderEmail({
+        to: params.guest.email,
+
+        guestFirstName:
+          params.guest.firstName,
+
+        reservationId:
+          params.reservationId,
+
+        checkIn:
+          params.checkInDate,
+
+        checkOut:
+          params.checkOutDate,
+
+        checkInTime:
+          params.checkInTime,
+
+        checkOutTime:
+          params.checkOutTime,
+
+        nights:
+          params.nights,
+
+        adults:
+          params.adults,
+
+        roomNames:
+          params.roomNames,
+
+        resortAddress:
+          params.resortAddress,
+
+        resortPhone:
+          params.resortPhone,
+
+        mapsUrl:
+          params.mapsUrl,
+
+        locale:
+          this.mapLocale(params.locale),
+      });
+
+      return true;
+    } catch (error: unknown) {
+      this.logNotificationFailure({
+        notificationType:
+          'seven-day-reminder',
+
+        reservationId:
+          params.reservationId,
+
+        recipient:
+          params.guest.email,
+
+        error,
+      });
+
+      return false;
+    }
+  }
+
+  async sendOneDayReminder(
+    params: OneDayReminderNotificationParams,
+  ): Promise<boolean> {
+    try {
+      await this.emailService.sendOneDayReminderEmail({
+        to: params.guest.email,
+
+        guestFirstName:
+          params.guest.firstName,
+
+        reservationId:
+          params.reservationId,
+
+        checkIn:
+          params.checkInDate,
+
+        checkOut:
+          params.checkOutDate,
+
+        checkInTime:
+          params.checkInTime,
+
+        checkOutTime:
+          params.checkOutTime,
+
+        roomNames:
+          params.roomNames,
+
+        resortAddress:
+          params.resortAddress,
+
+        resortPhone:
+          params.resortPhone,
+
+        parkingInstructions:
+          params.parkingInstructions,
+
+        accessInstructions:
+          params.accessInstructions,
+
+        mapsUrl:
+          params.mapsUrl,
+
+        locale:
+          this.mapLocale(params.locale),
+      });
+
+      return true;
+    } catch (error: unknown) {
+      this.logNotificationFailure({
+        notificationType:
+          'one-day-reminder',
+
+        reservationId:
+          params.reservationId,
+
+        recipient:
+          params.guest.email,
+
+        error,
+      });
+
+      return false;
+    }
+  }
+
+  async sendPostStay(
+    params: PostStayNotificationParams,
+  ): Promise<boolean> {
+    try {
+      await this.emailService.sendPostStayEmail({
+        to: params.guest.email,
+
+        guestFirstName:
+          params.guest.firstName,
+
+        reservationId:
+          params.reservationId,
+
+        checkIn:
+          params.checkInDate,
+
+        checkOut:
+          params.checkOutDate,
+
+        roomNames:
+          params.roomNames,
+
+        googleReviewUrl:
+          params.googleReviewUrl,
+
+        bookingReviewUrl:
+          params.bookingReviewUrl,
+
+        directBookingUrl:
+          params.directBookingUrl,
+
+        locale:
+          this.mapLocale(params.locale),
+      });
+
+      return true;
+    } catch (error: unknown) {
+      this.logNotificationFailure({
+        notificationType:
+          'post-stay',
+
+        reservationId:
+          params.reservationId,
+
+        recipient:
+          params.guest.email,
+
+        error,
+      });
+
+      return false;
+    }
+  }
+
+  private mapLocale(
+    locale: Locale,
+  ): 'RO' | 'EN' {
+    return locale === Locale.EN
+      ? 'EN'
+      : 'RO';
   }
 
   private logNotificationFailure(params: {
@@ -247,6 +660,7 @@ export class ReservationNotificationService {
         `reservationId=${params.reservationId}`,
         `recipient=${params.recipient}`,
       ].join(' '),
+
       params.error instanceof Error
         ? params.error.stack
         : String(params.error),

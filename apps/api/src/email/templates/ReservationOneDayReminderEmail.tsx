@@ -8,84 +8,74 @@ import {
 } from '@react-email/components';
 import { EmailLayout } from '../components/EmailLayout';
 
-type ReservationPaymentConfirmedEmailProps = {
+type ReservationOneDayReminderEmailProps = {
   guestFirstName: string;
   reservationId: string;
 
   checkIn: string;
   checkOut: string;
 
-  nights: number;
-  adults: number;
+  checkInTime: string;
+  checkOutTime: string;
 
   roomNames: string[];
 
-  amountPaid: number;
-  totalPrice: number;
+  resortAddress: string;
+  resortPhone: string;
 
+  parkingInstructions?: string;
+  accessInstructions?: string;
+
+  mapsUrl?: string;
   locale?: 'RO' | 'EN';
 };
 
-export function ReservationPaymentConfirmedEmail({
+export function ReservationOneDayReminderEmail({
   guestFirstName,
   reservationId,
   checkIn,
   checkOut,
-  nights,
-  adults,
+  checkInTime,
+  checkOutTime,
   roomNames,
-  amountPaid,
-  totalPrice,
+  resortAddress,
+  resortPhone,
+  parkingInstructions,
+  accessInstructions,
+  mapsUrl,
   locale = 'RO',
-}: ReservationPaymentConfirmedEmailProps) {
+}: ReservationOneDayReminderEmailProps) {
   const isRomanian = locale === 'RO';
-
-  const remainingAmount = Math.max(
-    0,
-    totalPrice - amountPaid,
-  );
-
-  const isFullyPaid = remainingAmount <= 0;
 
   return (
     <EmailLayout
       preview={
         isRomanian
-          ? 'Plata a fost confirmată, iar rezervarea este garantată.'
-          : 'Your payment has been confirmed and your reservation is secured.'
+          ? 'Mâine începe sejurul dumneavoastră la Sunshine Resort.'
+          : 'Your stay at Sunshine Resort begins tomorrow.'
       }
       title={
         isRomanian
-          ? `Rezervarea este confirmată, ${guestFirstName}`
-          : `Your reservation is confirmed, ${guestFirstName}`
+          ? `Vă așteptăm mâine, ${guestFirstName}`
+          : `We look forward to welcoming you tomorrow, ${guestFirstName}`
       }
+      buttonText={
+        mapsUrl
+          ? isRomanian
+            ? 'Deschide locația'
+            : 'Open location'
+          : undefined
+      }
+      buttonUrl={mapsUrl}
     >
       <Text style={paragraphStyle}>
         {isRomanian
-          ? 'Plata dumneavoastră a fost înregistrată cu succes. Rezervarea este acum confirmată, iar apartamentul a fost alocat pentru perioada selectată.'
-          : 'Your payment has been successfully received. Your reservation is now confirmed, and the apartment has been allocated for the selected period.'}
+          ? 'Mâine începe sejurul dumneavoastră la Sunshine Resort. Mai jos găsiți informațiile esențiale pentru sosire.'
+          : 'Your stay at Sunshine Resort begins tomorrow. Below you will find the essential arrival information.'}
       </Text>
 
-      <Section style={successCardStyle}>
-        <Text style={successTitleStyle}>
-          {isRomanian
-            ? 'Plată confirmată'
-            : 'Payment confirmed'}
-        </Text>
-
-        <Text style={successTextStyle}>
-          {isRomanian
-            ? isFullyPaid
-              ? 'Rezervarea a fost achitată integral.'
-              : 'Avansul a fost achitat, iar diferența poate fi plătită ulterior conform condițiilor rezervării.'
-            : isFullyPaid
-              ? 'The reservation has been paid in full.'
-              : 'The deposit has been paid. The remaining balance may be paid later according to the reservation terms.'}
-        </Text>
-      </Section>
-
       <Section style={detailsCardStyle}>
-        <Text style={detailsHeadingStyle}>
+        <Text style={sectionTitleStyle}>
           {isRomanian
             ? 'Detaliile rezervării'
             : 'Reservation details'}
@@ -107,7 +97,7 @@ export function ReservationPaymentConfirmedEmail({
           value={`${formatDate(
             checkIn,
             locale,
-          )} · 14:00`}
+          )} · ${checkInTime}`}
         />
 
         <DetailRow
@@ -115,25 +105,7 @@ export function ReservationPaymentConfirmedEmail({
           value={`${formatDate(
             checkOut,
             locale,
-          )} · 10:00`}
-        />
-
-        <DetailRow
-          label={
-            isRomanian
-              ? 'Număr de nopți'
-              : 'Number of nights'
-          }
-          value={String(nights)}
-        />
-
-        <DetailRow
-          label={
-            isRomanian
-              ? 'Adulți'
-              : 'Adults'
-          }
-          value={String(adults)}
+          )} · ${checkOutTime}`}
         />
 
         <DetailRow
@@ -146,11 +118,11 @@ export function ReservationPaymentConfirmedEmail({
         />
       </Section>
 
-      <Section style={paymentCardStyle}>
-        <Text style={paymentHeadingStyle}>
+      <Section style={arrivalCardStyle}>
+        <Text style={sectionTitleStyle}>
           {isRomanian
-            ? 'Situația plății'
-            : 'Payment summary'}
+            ? 'Informații pentru sosire'
+            : 'Arrival information'}
         </Text>
 
         <Hr style={dividerStyle} />
@@ -158,58 +130,77 @@ export function ReservationPaymentConfirmedEmail({
         <DetailRow
           label={
             isRomanian
-              ? 'Sumă achitată'
-              : 'Amount paid'
+              ? 'Adresă'
+              : 'Address'
           }
-          value={formatCurrency(
-            amountPaid,
-            locale,
-          )}
+          value={resortAddress}
         />
 
         <DetailRow
           label={
             isRomanian
-              ? 'Valoare totală'
-              : 'Total amount'
+              ? 'Telefon'
+              : 'Phone'
           }
-          value={formatCurrency(
-            totalPrice,
-            locale,
-          )}
+          value={resortPhone}
         />
 
         <DetailRow
           label={
             isRomanian
-              ? 'Diferență rămasă'
-              : 'Remaining balance'
+              ? 'Ora de check-in'
+              : 'Check-in time'
           }
-          value={formatCurrency(
-            remainingAmount,
-            locale,
-          )}
+          value={checkInTime}
         />
       </Section>
+
+      {parkingInstructions ? (
+        <Section style={instructionCardStyle}>
+          <Text style={instructionTitleStyle}>
+            {isRomanian
+              ? 'Parcare'
+              : 'Parking'}
+          </Text>
+
+          <Text style={instructionTextStyle}>
+            {parkingInstructions}
+          </Text>
+        </Section>
+      ) : null}
+
+      {accessInstructions ? (
+        <Section style={instructionCardStyle}>
+          <Text style={instructionTitleStyle}>
+            {isRomanian
+              ? 'Acces'
+              : 'Access'}
+          </Text>
+
+          <Text style={instructionTextStyle}>
+            {accessInstructions}
+          </Text>
+        </Section>
+      ) : null}
 
       <Section style={noticeStyle}>
         <Text style={noticeTitleStyle}>
           {isRomanian
-            ? 'Ce urmează?'
-            : 'What happens next?'}
+            ? 'Vă rugăm să ne anunțați'
+            : 'Please let us know'}
         </Text>
 
         <Text style={noticeTextStyle}>
           {isRomanian
-            ? 'Cu 7 zile înainte de sosire veți primi un email cu recomandări și informații utile. Cu 24 de ore înainte de check-in vă vom trimite detaliile privind accesul, parcarea și sosirea la resort.'
-            : 'Seven days before arrival, you will receive an email with recommendations and useful information. Twenty-four hours before check-in, we will send arrival, access and parking details.'}
+            ? 'Dacă ora estimată a sosirii se modifică semnificativ, vă rugăm să ne contactați telefonic.'
+            : 'If your estimated arrival time changes significantly, please contact us by phone.'}
         </Text>
       </Section>
 
       <Text style={closingStyle}>
         {isRomanian
-          ? 'Vă mulțumim că ați ales Sunshine Resort. Vă așteptăm cu drag.'
-          : 'Thank you for choosing Sunshine Resort. We look forward to welcoming you.'}
+          ? 'Drum bun și vă așteptăm cu drag la Sunshine Resort.'
+          : 'Have a safe journey. We look forward to welcoming you to Sunshine Resort.'}
       </Text>
     </EmailLayout>
   );
@@ -265,49 +256,11 @@ function formatDate(
   ).format(date);
 }
 
-function formatCurrency(
-  value: number,
-  locale: 'RO' | 'EN',
-): string {
-  return new Intl.NumberFormat(
-    locale === 'RO'
-      ? 'ro-RO'
-      : 'en-GB',
-    {
-      style: 'currency',
-      currency: 'RON',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    },
-  ).format(value);
-}
-
 const paragraphStyle: React.CSSProperties = {
   margin: '0 0 24px',
   color: '#d0cbc2',
   fontSize: '16px',
   lineHeight: '29px',
-};
-
-const successCardStyle: React.CSSProperties = {
-  marginBottom: '28px',
-  padding: '22px 24px',
-  backgroundColor: '#16180f',
-  borderLeft: '3px solid #d4af37',
-};
-
-const successTitleStyle: React.CSSProperties = {
-  margin: '0 0 8px',
-  color: '#d4af37',
-  fontSize: '16px',
-  fontWeight: 700,
-};
-
-const successTextStyle: React.CSSProperties = {
-  margin: 0,
-  color: '#d0cbc2',
-  fontSize: '14px',
-  lineHeight: '24px',
 };
 
 const detailsCardStyle: React.CSSProperties = {
@@ -318,15 +271,7 @@ const detailsCardStyle: React.CSSProperties = {
   borderRadius: '8px',
 };
 
-const detailsHeadingStyle: React.CSSProperties = {
-  margin: 0,
-  color: '#d4af37',
-  fontSize: '17px',
-  fontWeight: 700,
-  letterSpacing: '0.5px',
-};
-
-const paymentCardStyle: React.CSSProperties = {
+const arrivalCardStyle: React.CSSProperties = {
   marginBottom: '28px',
   padding: '26px',
   backgroundColor: '#151515',
@@ -334,7 +279,7 @@ const paymentCardStyle: React.CSSProperties = {
   borderRadius: '8px',
 };
 
-const paymentHeadingStyle: React.CSSProperties = {
+const sectionTitleStyle: React.CSSProperties = {
   margin: 0,
   color: '#d4af37',
   fontSize: '17px',
@@ -352,12 +297,12 @@ const detailRowStyle: React.CSSProperties = {
 };
 
 const labelColumnStyle: React.CSSProperties = {
-  width: '46%',
+  width: '42%',
   verticalAlign: 'top',
 };
 
 const valueColumnStyle: React.CSSProperties = {
-  width: '54%',
+  width: '58%',
   verticalAlign: 'top',
 };
 
@@ -375,6 +320,29 @@ const detailValueStyle: React.CSSProperties = {
   fontWeight: 600,
   lineHeight: '20px',
   textAlign: 'right',
+};
+
+const instructionCardStyle: React.CSSProperties = {
+  marginBottom: '24px',
+  padding: '22px 24px',
+  backgroundColor: '#151515',
+  border: '1px solid #292929',
+  borderRadius: '6px',
+};
+
+const instructionTitleStyle: React.CSSProperties = {
+  margin: '0 0 8px',
+  color: '#f1ede6',
+  fontSize: '15px',
+  fontWeight: 700,
+};
+
+const instructionTextStyle: React.CSSProperties = {
+  margin: 0,
+  color: '#aaa39a',
+  fontSize: '14px',
+  lineHeight: '24px',
+  whiteSpace: 'pre-line',
 };
 
 const noticeStyle: React.CSSProperties = {
@@ -405,15 +373,21 @@ const closingStyle: React.CSSProperties = {
   lineHeight: '25px',
 };
 
-ReservationPaymentConfirmedEmail.PreviewProps = {
+ReservationOneDayReminderEmail.PreviewProps = {
   guestFirstName: 'Marius',
   reservationId: 'SR-2026-0001',
-  checkIn: '2026-11-05',
-  checkOut: '2026-11-08',
-  nights: 3,
-  adults: 2,
+  checkIn: '2026-11-12',
+  checkOut: '2026-11-15',
+  checkInTime: '14:00',
+  checkOutTime: '10:00',
   roomNames: ['Apartament Signature'],
-  amountPaid: 1300,
-  totalPrice: 2600,
+  resortAddress:
+    'Colibița, Bistrița-Năsăud, România',
+  resortPhone: '+40 700 000 000',
+  parkingInstructions:
+    'Parcarea este disponibilă în interiorul proprietății.',
+  accessInstructions:
+    'La sosire, vă rugăm să contactați numărul resortului pentru instrucțiunile de acces.',
+  mapsUrl: 'https://maps.google.com',
   locale: 'RO' as const,
 };

@@ -108,9 +108,76 @@ export type SendReservationCancelledEmailParams = {
   locale?: ReservationEmailLocale;
 };
 
+export type SendSevenDayReminderEmailParams = {
+  to: string;
+  guestFirstName: string;
+  reservationId: string;
+
+  checkIn: Date | string;
+  checkOut: Date | string;
+
+  checkInTime: string;
+  checkOutTime: string;
+
+  nights: number;
+  adults: number;
+
+  roomNames: string[];
+
+  resortAddress: string;
+  resortPhone: string;
+
+  mapsUrl?: string;
+
+  locale?: ReservationEmailLocale;
+};
+
+export type SendOneDayReminderEmailParams = {
+  to: string;
+  guestFirstName: string;
+  reservationId: string;
+
+  checkIn: Date | string;
+  checkOut: Date | string;
+
+  checkInTime: string;
+  checkOutTime: string;
+
+  roomNames: string[];
+
+  resortAddress: string;
+  resortPhone: string;
+
+  parkingInstructions?: string;
+  accessInstructions?: string;
+
+  mapsUrl?: string;
+
+  locale?: ReservationEmailLocale;
+};
+
+export type SendPostStayEmailParams = {
+  to: string;
+  guestFirstName: string;
+  reservationId: string;
+
+  checkIn: Date | string;
+  checkOut: Date | string;
+
+  roomNames: string[];
+
+  googleReviewUrl?: string;
+  bookingReviewUrl?: string;
+  directBookingUrl?: string;
+
+  locale?: ReservationEmailLocale;
+};
+
 @Injectable()
 export class EmailService implements OnModuleInit {
-  private readonly logger = new Logger(EmailService.name);
+  private readonly logger = new Logger(
+    EmailService.name,
+  );
 
   private readonly resend: Resend;
   private readonly fromName: string;
@@ -121,7 +188,9 @@ export class EmailService implements OnModuleInit {
     private readonly reservationEmailBuilder: ReservationEmailBuilder,
   ) {
     const apiKey =
-      this.configService.get<string>('RESEND_API_KEY');
+      this.configService.get<string>(
+        'RESEND_API_KEY',
+      );
 
     const fromName =
       this.configService.get<string>(
@@ -145,11 +214,17 @@ export class EmailService implements OnModuleInit {
       );
     }
 
-    this.resend = new Resend(apiKey.trim());
-    this.fromName = fromName.trim();
-    this.fromAddress = fromAddress
-      .trim()
-      .toLowerCase();
+    this.resend = new Resend(
+      apiKey.trim(),
+    );
+
+    this.fromName =
+      fromName.trim();
+
+    this.fromAddress =
+      fromAddress
+        .trim()
+        .toLowerCase();
   }
 
   onModuleInit(): void {
@@ -161,9 +236,10 @@ export class EmailService implements OnModuleInit {
   async sendEmail(
     params: SendEmailParams,
   ): Promise<SendEmailResult> {
-    const recipients = this.normalizeRecipients(
-      params.to,
-    );
+    const recipients =
+      this.normalizeRecipients(
+        params.to,
+      );
 
     if (recipients.length === 0) {
       throw new InternalServerErrorException({
@@ -173,7 +249,8 @@ export class EmailService implements OnModuleInit {
       });
     }
 
-    const subject = params.subject.trim();
+    const subject =
+      params.subject.trim();
 
     if (!subject) {
       throw new InternalServerErrorException({
@@ -186,7 +263,9 @@ export class EmailService implements OnModuleInit {
     try {
       const { data, error } =
         await this.resend.emails.send({
-          from: `${this.fromName} <${this.fromAddress}>`,
+          from:
+            `${this.fromName} <${this.fromAddress}>`,
+
           to: recipients,
           subject,
           html: params.html,
@@ -204,7 +283,8 @@ export class EmailService implements OnModuleInit {
           code: 'EMAIL_PROVIDER_ERROR',
           message:
             'Furnizorul de email nu a acceptat mesajul.',
-          providerMessage: error.message,
+          providerMessage:
+            error.message,
         });
       }
 
@@ -256,16 +336,19 @@ export class EmailService implements OnModuleInit {
   async sendTestEmail(
     params: SendTestEmailParams,
   ): Promise<SendEmailResult> {
-    const emailComponent = createElement(TestEmail, {
-      subject: params.subject,
-      message: params.message,
-    });
+    const emailComponent =
+      createElement(TestEmail, {
+        subject: params.subject,
+        message: params.message,
+      });
 
-    const html = await render(emailComponent);
+    const html =
+      await render(emailComponent);
 
-    const text = await render(emailComponent, {
-      plainText: true,
-    });
+    const text =
+      await render(emailComponent, {
+        plainText: true,
+      });
 
     return this.sendEmail({
       to: params.to,
@@ -287,16 +370,32 @@ export class EmailService implements OnModuleInit {
     const emailContent =
       await this.reservationEmailBuilder.buildReservationCreated(
         {
-          guestFirstName: params.guestFirstName,
-          reservationId: params.reservationId,
-          checkIn: params.checkIn,
-          checkOut: params.checkOut,
-          nights: params.nights,
-          adults: params.adults,
-          roomNames: params.roomNames,
+          guestFirstName:
+            params.guestFirstName,
+
+          reservationId:
+            params.reservationId,
+
+          checkIn:
+            params.checkIn,
+
+          checkOut:
+            params.checkOut,
+
+          nights:
+            params.nights,
+
+          adults:
+            params.adults,
+
+          roomNames:
+            params.roomNames,
+
           approvalDeadline:
             params.approvalDeadline,
-          locale: params.locale ?? 'RO',
+
+          locale:
+            params.locale ?? 'RO',
         },
       );
 
@@ -305,11 +404,13 @@ export class EmailService implements OnModuleInit {
       subject: emailContent.subject,
       html: emailContent.html,
       text: emailContent.text,
-      tags: this.buildReservationTags(
-        'reservation-created',
-        params.reservationId,
-        params.locale,
-      ),
+
+      tags:
+        this.buildReservationTags(
+          'reservation-created',
+          params.reservationId,
+          params.locale,
+        ),
     });
   }
 
@@ -319,19 +420,41 @@ export class EmailService implements OnModuleInit {
     const emailContent =
       await this.reservationEmailBuilder.buildReservationApproved(
         {
-          guestFirstName: params.guestFirstName,
-          reservationId: params.reservationId,
-          checkIn: params.checkIn,
-          checkOut: params.checkOut,
-          nights: params.nights,
-          adults: params.adults,
-          roomNames: params.roomNames,
-          totalPrice: params.totalPrice,
-          depositAmount: params.depositAmount,
+          guestFirstName:
+            params.guestFirstName,
+
+          reservationId:
+            params.reservationId,
+
+          checkIn:
+            params.checkIn,
+
+          checkOut:
+            params.checkOut,
+
+          nights:
+            params.nights,
+
+          adults:
+            params.adults,
+
+          roomNames:
+            params.roomNames,
+
+          totalPrice:
+            params.totalPrice,
+
+          depositAmount:
+            params.depositAmount,
+
           paymentDeadline:
             params.paymentDeadline,
-          paymentUrl: params.paymentUrl,
-          locale: params.locale ?? 'RO',
+
+          paymentUrl:
+            params.paymentUrl,
+
+          locale:
+            params.locale ?? 'RO',
         },
       );
 
@@ -340,11 +463,13 @@ export class EmailService implements OnModuleInit {
       subject: emailContent.subject,
       html: emailContent.html,
       text: emailContent.text,
-      tags: this.buildReservationTags(
-        'reservation-approved',
-        params.reservationId,
-        params.locale,
-      ),
+
+      tags:
+        this.buildReservationTags(
+          'reservation-approved',
+          params.reservationId,
+          params.locale,
+        ),
     });
   }
 
@@ -354,16 +479,35 @@ export class EmailService implements OnModuleInit {
     const emailContent =
       await this.reservationEmailBuilder.buildPaymentConfirmed(
         {
-          guestFirstName: params.guestFirstName,
-          reservationId: params.reservationId,
-          checkIn: params.checkIn,
-          checkOut: params.checkOut,
-          nights: params.nights,
-          adults: params.adults,
-          roomNames: params.roomNames,
-          amountPaid: params.amountPaid,
-          totalPrice: params.totalPrice,
-          locale: params.locale ?? 'RO',
+          guestFirstName:
+            params.guestFirstName,
+
+          reservationId:
+            params.reservationId,
+
+          checkIn:
+            params.checkIn,
+
+          checkOut:
+            params.checkOut,
+
+          nights:
+            params.nights,
+
+          adults:
+            params.adults,
+
+          roomNames:
+            params.roomNames,
+
+          amountPaid:
+            params.amountPaid,
+
+          totalPrice:
+            params.totalPrice,
+
+          locale:
+            params.locale ?? 'RO',
         },
       );
 
@@ -372,11 +516,13 @@ export class EmailService implements OnModuleInit {
       subject: emailContent.subject,
       html: emailContent.html,
       text: emailContent.text,
-      tags: this.buildReservationTags(
-        'payment-confirmed',
-        params.reservationId,
-        params.locale,
-      ),
+
+      tags:
+        this.buildReservationTags(
+          'payment-confirmed',
+          params.reservationId,
+          params.locale,
+        ),
     });
   }
 
@@ -386,14 +532,26 @@ export class EmailService implements OnModuleInit {
     const emailContent =
       await this.reservationEmailBuilder.buildReservationRejected(
         {
-          guestFirstName: params.guestFirstName,
-          reservationId: params.reservationId,
-          checkIn: params.checkIn,
-          checkOut: params.checkOut,
-          roomNames: params.roomNames,
+          guestFirstName:
+            params.guestFirstName,
+
+          reservationId:
+            params.reservationId,
+
+          checkIn:
+            params.checkIn,
+
+          checkOut:
+            params.checkOut,
+
+          roomNames:
+            params.roomNames,
+
           rejectionReason:
             params.rejectionReason,
-          locale: params.locale ?? 'RO',
+
+          locale:
+            params.locale ?? 'RO',
         },
       );
 
@@ -402,11 +560,13 @@ export class EmailService implements OnModuleInit {
       subject: emailContent.subject,
       html: emailContent.html,
       text: emailContent.text,
-      tags: this.buildReservationTags(
-        'reservation-rejected',
-        params.reservationId,
-        params.locale,
-      ),
+
+      tags:
+        this.buildReservationTags(
+          'reservation-rejected',
+          params.reservationId,
+          params.locale,
+        ),
     });
   }
 
@@ -416,20 +576,35 @@ export class EmailService implements OnModuleInit {
     const emailContent =
       await this.reservationEmailBuilder.buildReservationCancelled(
         {
-          guestFirstName: params.guestFirstName,
-          reservationId: params.reservationId,
-          checkIn: params.checkIn,
-          checkOut: params.checkOut,
-          roomNames: params.roomNames,
+          guestFirstName:
+            params.guestFirstName,
+
+          reservationId:
+            params.reservationId,
+
+          checkIn:
+            params.checkIn,
+
+          checkOut:
+            params.checkOut,
+
+          roomNames:
+            params.roomNames,
+
           cancellationReason:
             params.cancellationReason,
+
           previouslyPaidAmount:
             params.previouslyPaidAmount,
+
           refundedAmount:
             params.refundedAmount,
+
           retainedAmount:
             params.retainedAmount,
-          locale: params.locale ?? 'RO',
+
+          locale:
+            params.locale ?? 'RO',
         },
       );
 
@@ -438,11 +613,187 @@ export class EmailService implements OnModuleInit {
       subject: emailContent.subject,
       html: emailContent.html,
       text: emailContent.text,
-      tags: this.buildReservationTags(
-        'reservation-cancelled',
-        params.reservationId,
-        params.locale,
-      ),
+
+      tags:
+        this.buildReservationTags(
+          'reservation-cancelled',
+          params.reservationId,
+          params.locale,
+        ),
+    });
+  }
+
+  async sendSevenDayReminderEmail(
+    params: SendSevenDayReminderEmailParams,
+  ): Promise<SendEmailResult> {
+    const emailContent =
+      await this.reservationEmailBuilder.buildSevenDayReminder(
+        {
+          guestFirstName:
+            params.guestFirstName,
+
+          reservationId:
+            params.reservationId,
+
+          checkIn:
+            params.checkIn,
+
+          checkOut:
+            params.checkOut,
+
+          checkInTime:
+            params.checkInTime,
+
+          checkOutTime:
+            params.checkOutTime,
+
+          nights:
+            params.nights,
+
+          adults:
+            params.adults,
+
+          roomNames:
+            params.roomNames,
+
+          resortAddress:
+            params.resortAddress,
+
+          resortPhone:
+            params.resortPhone,
+
+          mapsUrl:
+            params.mapsUrl,
+
+          locale:
+            params.locale ?? 'RO',
+        },
+      );
+
+    return this.sendEmail({
+      to: params.to,
+      subject: emailContent.subject,
+      html: emailContent.html,
+      text: emailContent.text,
+
+      tags:
+        this.buildReservationTags(
+          'seven-day-reminder',
+          params.reservationId,
+          params.locale,
+        ),
+    });
+  }
+
+  async sendOneDayReminderEmail(
+    params: SendOneDayReminderEmailParams,
+  ): Promise<SendEmailResult> {
+    const emailContent =
+      await this.reservationEmailBuilder.buildOneDayReminder(
+        {
+          guestFirstName:
+            params.guestFirstName,
+
+          reservationId:
+            params.reservationId,
+
+          checkIn:
+            params.checkIn,
+
+          checkOut:
+            params.checkOut,
+
+          checkInTime:
+            params.checkInTime,
+
+          checkOutTime:
+            params.checkOutTime,
+
+          roomNames:
+            params.roomNames,
+
+          resortAddress:
+            params.resortAddress,
+
+          resortPhone:
+            params.resortPhone,
+
+          parkingInstructions:
+            params.parkingInstructions,
+
+          accessInstructions:
+            params.accessInstructions,
+
+          mapsUrl:
+            params.mapsUrl,
+
+          locale:
+            params.locale ?? 'RO',
+        },
+      );
+
+    return this.sendEmail({
+      to: params.to,
+      subject: emailContent.subject,
+      html: emailContent.html,
+      text: emailContent.text,
+
+      tags:
+        this.buildReservationTags(
+          'one-day-reminder',
+          params.reservationId,
+          params.locale,
+        ),
+    });
+  }
+
+  async sendPostStayEmail(
+    params: SendPostStayEmailParams,
+  ): Promise<SendEmailResult> {
+    const emailContent =
+      await this.reservationEmailBuilder.buildPostStay(
+        {
+          guestFirstName:
+            params.guestFirstName,
+
+          reservationId:
+            params.reservationId,
+
+          checkIn:
+            params.checkIn,
+
+          checkOut:
+            params.checkOut,
+
+          roomNames:
+            params.roomNames,
+
+          googleReviewUrl:
+            params.googleReviewUrl,
+
+          bookingReviewUrl:
+            params.bookingReviewUrl,
+
+          directBookingUrl:
+            params.directBookingUrl,
+
+          locale:
+            params.locale ?? 'RO',
+        },
+      );
+
+    return this.sendEmail({
+      to: params.to,
+      subject: emailContent.subject,
+      html: emailContent.html,
+      text: emailContent.text,
+
+      tags:
+        this.buildReservationTags(
+          'post-stay',
+          params.reservationId,
+          params.locale,
+        ),
     });
   }
 
@@ -454,38 +805,54 @@ export class EmailService implements OnModuleInit {
     return [
       {
         name: 'type',
-        value: type,
+        value:
+          this.normalizeTagValue(
+            type,
+          ),
       },
       {
         name: 'reservation_id',
-        value: this.normalizeTagValue(
-          reservationId,
-        ),
+        value:
+          this.normalizeTagValue(
+            reservationId,
+          ),
       },
       {
         name: 'locale',
-        value: (
-          locale ?? 'RO'
-        ).toLowerCase(),
+        value:
+          (
+            locale ?? 'RO'
+          ).toLowerCase(),
       },
     ];
   }
 
   private normalizeRecipients(
-    recipients: string | string[],
+    recipients:
+      | string
+      | string[],
   ): string[] {
-    const values = Array.isArray(recipients)
-      ? recipients
-      : [recipients];
+    const values =
+      Array.isArray(recipients)
+        ? recipients
+        : [recipients];
 
     return values
       .map((recipient) =>
-        recipient.trim().toLowerCase(),
+        recipient
+          .trim()
+          .toLowerCase(),
       )
       .filter(
-        (recipient, index, allRecipients) =>
+        (
+          recipient,
+          index,
+          allRecipients,
+        ) =>
           recipient.length > 0 &&
-          allRecipients.indexOf(recipient) === index,
+          allRecipients.indexOf(
+            recipient,
+          ) === index,
       );
   }
 
@@ -495,7 +862,10 @@ export class EmailService implements OnModuleInit {
     return value
       .trim()
       .toLowerCase()
-      .replace(/[^a-z0-9_-]/g, '-')
+      .replace(
+        /[^a-z0-9_-]/g,
+        '-',
+      )
       .slice(0, 256);
   }
 }

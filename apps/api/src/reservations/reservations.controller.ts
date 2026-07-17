@@ -116,15 +116,6 @@ export class ReservationsController {
   }
 
   /**
-   * Detaliile unei rezervări.
-   */
-  @UseGuards(JwtAuthGuard)
-  @Get(':id')
-  findById(@Param('id') id: string) {
-    return this.reservationsService.findById(id);
-  }
-
-  /**
    * Aprobare cerere inițială.
    */
   @UseGuards(JwtAuthGuard)
@@ -173,5 +164,17 @@ export class ReservationsController {
       admin.id,
       dto,
     );
+  }
+
+  /**
+   * Detaliile unei rezervări.
+   *
+   * Ruta dinamică trebuie să rămână ultima dintre rutele GET
+   * care folosesc prefixul /reservations.
+   */
+  @UseGuards(JwtAuthGuard)
+  @Get(':id')
+  findById(@Param('id') id: string) {
+    return this.reservationsService.findById(id);
   }
 }

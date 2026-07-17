@@ -4,12 +4,15 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import {
+  Locale,
   Prisma,
   ReservationStatus,
 } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { ApproveReservationDto } from '../dto/approve-reservation.dto';
 import { RejectReservationDto } from '../dto/reject-reservation.dto';
+import { ReservationNotificationService } from './reservation-notification.service';
+import { ReservationPaymentAccessService } from './reservation-payment-access.service';
 import { ReservationStatusService } from './reservation-status.service';
 
 @Injectable()
@@ -17,6 +20,8 @@ export class ReservationReviewService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly statusService: ReservationStatusService,
+    private readonly notificationService: ReservationNotificationService,
+    private readonly paymentAccessService: ReservationPaymentAccessService,
   ) {}
 
   async approve(
@@ -32,7 +37,7 @@ export class ReservationReviewService {
     );
 
     try {
-      return await this.prisma.$transaction(
+      const result = await this.prisma.$transaction(
         async (transaction) => {
           const reservation =
             await transaction.reservation.findUnique({
@@ -46,6 +51,9 @@ export class ReservationReviewService {
                     roomType: true,
                     room: true,
                   },
+                  orderBy: {
+                    id: 'asc',
+                  },
                 },
               },
             });
@@ -56,18 +64,43 @@ export class ReservationReviewService {
             );
           }
 
+          if (reservation.isComplimentary) {
+            throw new ConflictException({
+              code: 'COMPLIMENTARY_RESERVATION_REVIEW',
+              message:
+                'Rezervările gratuite trebuie create manual și confirmate direct de administrator.',
+            });
+          }
+
           const statusUpdate =
             this.statusService.buildApprovalUpdate(
               reservation.status,
               now,
             );
 
+          if (!statusUpdate.paymentExpiresAt) {
+            throw new ConflictException({
+              code: 'PAYMENT_DEADLINE_NOT_CONFIGURED',
+              message:
+                'Termenul de plată al rezervării nu a fost configurat.',
+            });
+          }
+
+          const paymentAccess =
+            this.paymentAccessService.preparePaymentAccess({
+              locale: reservation.locale,
+              expiresAt:
+                statusUpdate.paymentExpiresAt,
+            });
+
           const updateResult =
             await transaction.reservation.updateMany({
               where: {
                 id: reservationId,
+
                 status:
                   ReservationStatus.PENDING_APPROVAL,
+
                 OR: [
                   {
                     approvalExpiresAt: null,
@@ -79,9 +112,17 @@ export class ReservationReviewService {
                   },
                 ],
               },
+
               data: {
                 ...statusUpdate,
+
                 approvedByAdminId: adminId,
+
+                paymentAccessTokenHash:
+                  paymentAccess.tokenHash,
+
+                paymentAccessTokenExpiresAt:
+                  paymentAccess.expiresAt,
 
                 ...(dto.adminNotes !== undefined && {
                   adminNotes: dto.adminNotes.trim(),
@@ -102,14 +143,20 @@ export class ReservationReviewService {
               where: {
                 id: reservationId,
               },
+
               include: {
                 guest: true,
+
                 rooms: {
                   include: {
                     roomType: true,
                     room: true,
                   },
+                  orderBy: {
+                    id: 'asc',
+                  },
                 },
+
                 approvedByAdmin: {
                   select: {
                     id: true,
@@ -121,16 +168,78 @@ export class ReservationReviewService {
               },
             });
 
-          return this.mapReviewResponse(
-            updatedReservation,
-            'Rezervarea a fost aprobată și așteaptă plata clientului.',
-          );
+          return {
+            reservation: updatedReservation,
+            paymentUrl: paymentAccess.paymentUrl,
+          };
         },
         {
           isolationLevel:
             Prisma.TransactionIsolationLevel.Serializable,
         },
       );
+
+      const reservation = result.reservation;
+
+      if (!reservation.paymentExpiresAt) {
+        throw new ConflictException({
+          code: 'PAYMENT_DEADLINE_NOT_CONFIGURED',
+          message:
+            'Rezervarea a fost aprobată, dar termenul de plată lipsește.',
+        });
+      }
+
+      const roomNames = reservation.rooms.map(
+        (reservationRoom) =>
+          reservation.locale === Locale.EN
+            ? reservationRoom.roomType.nameEn
+            : reservationRoom.roomType.nameRo,
+      );
+
+      await this.notificationService.sendReservationApproved(
+        {
+          reservationId: reservation.id,
+
+          guest: {
+            firstName:
+              reservation.guest.firstName,
+            email: reservation.guest.email,
+          },
+
+          locale: reservation.locale,
+
+          checkInDate:
+            reservation.checkInDate,
+
+          checkOutDate:
+            reservation.checkOutDate,
+
+          nights: reservation.nights,
+          adults: reservation.adults,
+
+          roomNames,
+
+          totalPrice:
+            reservation.totalPrice.toNumber(),
+
+          depositAmount:
+            reservation.depositAmount.toNumber(),
+
+          paymentDeadline:
+            reservation.paymentExpiresAt,
+
+          paymentUrl: result.paymentUrl,
+        },
+      );
+
+      return {
+        ...this.mapReviewResponse(
+          reservation,
+          'Rezervarea a fost aprobată. Clientul a primit linkul securizat pentru plată.',
+        ),
+
+        paymentUrl: result.paymentUrl,
+      };
     } catch (error: unknown) {
       if (
         error instanceof
@@ -161,102 +270,146 @@ export class ReservationReviewService {
     );
 
     try {
-      return await this.prisma.$transaction(
-        async (transaction) => {
-          const reservation =
-            await transaction.reservation.findUnique({
-              where: {
-                id: reservationId,
-              },
-              include: {
-                guest: true,
-                rooms: {
-                  include: {
-                    roomType: true,
-                    room: true,
-                  },
+      const reservation =
+        await this.prisma.$transaction(
+          async (transaction) => {
+            const existingReservation =
+              await transaction.reservation.findUnique({
+                where: {
+                  id: reservationId,
                 },
-              },
-            });
 
-          if (!reservation) {
-            throw new NotFoundException(
-              'Rezervarea nu a fost găsită.',
-            );
-          }
+                include: {
+                  guest: true,
 
-          const statusUpdate =
-            this.statusService.buildRejectionUpdate(
-              reservation.status,
-              dto.reason,
-              now,
-            );
-
-          const updateResult =
-            await transaction.reservation.updateMany({
-              where: {
-                id: reservationId,
-                status:
-                  ReservationStatus.PENDING_APPROVAL,
-                OR: [
-                  {
-                    approvalExpiresAt: null,
-                  },
-                  {
-                    approvalExpiresAt: {
-                      gt: now,
+                  rooms: {
+                    include: {
+                      roomType: true,
+                      room: true,
+                    },
+                    orderBy: {
+                      id: 'asc',
                     },
                   },
-                ],
-              },
-              data: {
-                ...statusUpdate,
+                },
+              });
 
-                /*
-                 * Schema nu are încă rejectedByAdminId.
-                 * Păstrăm administratorul în adminNotes până la
-                 * introducerea unui AuditLog.
-                 */
-                adminNotes: this.buildAdminNotes(
-                  dto.adminNotes,
-                  adminId,
-                ),
-              },
-            });
+            if (!existingReservation) {
+              throw new NotFoundException(
+                'Rezervarea nu a fost găsită.',
+              );
+            }
 
-          if (updateResult.count !== 1) {
-            throw new ConflictException({
-              code: 'RESERVATION_REVIEW_CONFLICT',
-              message:
-                'Rezervarea a fost modificată între timp și nu mai poate fi respinsă.',
-            });
-          }
+            const statusUpdate =
+              this.statusService.buildRejectionUpdate(
+                existingReservation.status,
+                dto.reason,
+                now,
+              );
 
-          const updatedReservation =
-            await transaction.reservation.findUniqueOrThrow({
+            const updateResult =
+              await transaction.reservation.updateMany({
+                where: {
+                  id: reservationId,
+
+                  status:
+                    ReservationStatus.PENDING_APPROVAL,
+
+                  OR: [
+                    {
+                      approvalExpiresAt: null,
+                    },
+                    {
+                      approvalExpiresAt: {
+                        gt: now,
+                      },
+                    },
+                  ],
+                },
+
+                data: {
+                  ...statusUpdate,
+
+                  paymentAccessTokenHash: null,
+                  paymentAccessTokenExpiresAt: null,
+
+                  adminNotes: this.buildAdminNotes(
+                    dto.adminNotes,
+                    adminId,
+                  ),
+                },
+              });
+
+            if (updateResult.count !== 1) {
+              throw new ConflictException({
+                code: 'RESERVATION_REVIEW_CONFLICT',
+                message:
+                  'Rezervarea a fost modificată între timp și nu mai poate fi respinsă.',
+              });
+            }
+
+            return transaction.reservation.findUniqueOrThrow({
               where: {
                 id: reservationId,
               },
+
               include: {
                 guest: true,
+
                 rooms: {
                   include: {
                     roomType: true,
                     room: true,
                   },
+                  orderBy: {
+                    id: 'asc',
+                  },
                 },
               },
             });
+          },
+          {
+            isolationLevel:
+              Prisma.TransactionIsolationLevel.Serializable,
+          },
+        );
 
-          return this.mapReviewResponse(
-            updatedReservation,
-            'Rezervarea a fost respinsă.',
-          );
-        },
+      const roomNames = reservation.rooms.map(
+        (reservationRoom) =>
+          reservation.locale === Locale.EN
+            ? reservationRoom.roomType.nameEn
+            : reservationRoom.roomType.nameRo,
+      );
+
+      await this.notificationService.sendReservationRejected(
         {
-          isolationLevel:
-            Prisma.TransactionIsolationLevel.Serializable,
+          reservationId: reservation.id,
+
+          guest: {
+            firstName:
+              reservation.guest.firstName,
+            email: reservation.guest.email,
+          },
+
+          locale: reservation.locale,
+
+          checkInDate:
+            reservation.checkInDate,
+
+          checkOutDate:
+            reservation.checkOutDate,
+
+          roomNames,
+
+          rejectionReason:
+            reservation.rejectionReason ??
+            dto.reason.trim(),
         },
+      );
+
+      return this.mapReviewResponse(
+        reservation,
+        'Rezervarea a fost respinsă, iar clientul a fost notificat.',
       );
     } catch (error: unknown) {
       if (
@@ -284,6 +437,7 @@ export class ReservationReviewService {
         where: {
           id: reservationId,
         },
+
         select: {
           id: true,
           status: true,
@@ -314,7 +468,13 @@ export class ReservationReviewService {
           status:
             ReservationStatus.PENDING_APPROVAL,
         },
-        data: statusUpdate,
+
+        data: {
+          ...statusUpdate,
+
+          paymentAccessTokenHash: null,
+          paymentAccessTokenExpiresAt: null,
+        },
       });
 
       throw new ConflictException({
@@ -343,32 +503,43 @@ export class ReservationReviewService {
     reservation: {
       id: string;
       status: ReservationStatus;
+
       approvedAt: Date | null;
       rejectedAt: Date | null;
+
       approvalExpiresAt: Date | null;
       paymentExpiresAt: Date | null;
+
+      paymentAccessTokenExpiresAt:
+        Date | null;
+
       rejectionReason: string | null;
       adminNotes: string | null;
+
       guest: {
         firstName: string;
         lastName: string;
         email: string;
       };
+
       rooms: Array<{
         id: string;
         roomTypeId: string;
         roomId: string | null;
+
         roomType: {
           id: string;
           nameRo: string;
           nameEn: string;
         };
+
         room: {
           id: string;
           code: string;
           name: string;
         } | null;
       }>;
+
       approvedByAdmin?: {
         id: string;
         firstName: string;
@@ -383,20 +554,25 @@ export class ReservationReviewService {
       status: reservation.status,
 
       guest: {
-        firstName: reservation.guest.firstName,
-        lastName: reservation.guest.lastName,
+        firstName:
+          reservation.guest.firstName,
+
+        lastName:
+          reservation.guest.lastName,
+
         email: reservation.guest.email,
       },
 
       rooms: reservation.rooms.map((room) => ({
         reservationRoomId: room.id,
         roomTypeId: room.roomTypeId,
-        roomTypeNameRo: room.roomType.nameRo,
-        roomTypeNameEn: room.roomType.nameEn,
 
-        /*
-         * Va rămâne null până când plata este confirmată.
-         */
+        roomTypeNameRo:
+          room.roomType.nameRo,
+
+        roomTypeNameEn:
+          room.roomType.nameEn,
+
         allocatedRoom: room.room
           ? {
               id: room.room.id,
@@ -423,6 +599,10 @@ export class ReservationReviewService {
 
       paymentExpiresAt:
         reservation.paymentExpiresAt?.toISOString() ??
+        null,
+
+      paymentAccessTokenExpiresAt:
+        reservation.paymentAccessTokenExpiresAt?.toISOString() ??
         null,
 
       rejectionReason:

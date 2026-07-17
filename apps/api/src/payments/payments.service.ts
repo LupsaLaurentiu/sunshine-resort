@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
+  Locale,
   PaymentProvider,
   PaymentStatus,
   PaymentType,
@@ -17,10 +18,35 @@ import Stripe from 'stripe';
 import { PrismaService } from '../prisma/prisma.service';
 import { ReservationAllocationService } from '../reservations/services/reservation-allocation.service';
 import { ReservationChangeReviewService } from '../reservations/services/reservation-change-review.service';
+import { ReservationNotificationService } from '../reservations/services/reservation-notification.service';
+import { ReservationPaymentAccessService } from '../reservations/services/reservation-payment-access.service';
 import { ReservationStatusService } from '../reservations/services/reservation-status.service';
 import { CreateCheckoutSessionDto } from './dto/create-checkout-session.dto';
+import { CreatePublicCheckoutSessionDto } from './dto/create-public-checkout-session.dto';
 import { CreateReservationChangeCheckoutDto } from './dto/create-reservation-change-checkout.dto';
 import type { CheckoutResponse } from './types/checkout-response.type';
+
+type PaymentConfirmationNotification = {
+  reservationId: string;
+
+  guest: {
+    firstName: string;
+    email: string;
+  };
+
+  locale: Locale;
+
+  checkInDate: Date;
+  checkOutDate: Date;
+
+  nights: number;
+  adults: number;
+
+  roomNames: string[];
+
+  amountPaid: number;
+  totalPrice: number;
+};
 
 @Injectable()
 export class PaymentsService {
@@ -35,18 +61,28 @@ export class PaymentsService {
     private readonly allocationService: ReservationAllocationService,
     private readonly statusService: ReservationStatusService,
     private readonly reservationChangeReviewService: ReservationChangeReviewService,
+    private readonly reservationPaymentAccessService: ReservationPaymentAccessService,
+    private readonly reservationNotificationService: ReservationNotificationService,
   ) {
     const stripeSecretKey =
-      this.configService.get<string>('STRIPE_SECRET_KEY');
+      this.configService.get<string>(
+        'STRIPE_SECRET_KEY',
+      );
 
     const successUrl =
-      this.configService.get<string>('STRIPE_SUCCESS_URL');
+      this.configService.get<string>(
+        'STRIPE_SUCCESS_URL',
+      );
 
     const cancelUrl =
-      this.configService.get<string>('STRIPE_CANCEL_URL');
+      this.configService.get<string>(
+        'STRIPE_CANCEL_URL',
+      );
 
     const webhookSecret =
-      this.configService.get<string>('STRIPE_WEBHOOK_SECRET');
+      this.configService.get<string>(
+        'STRIPE_WEBHOOK_SECRET',
+      );
 
     if (!stripeSecretKey) {
       throw new Error(
@@ -78,22 +114,64 @@ export class PaymentsService {
     this.webhookSecret = webhookSecret;
   }
 
+  async createPublicCheckoutSession(
+    dto: CreatePublicCheckoutSessionDto,
+  ): Promise<CheckoutResponse> {
+    this.validateInitialPaymentType(
+      dto.paymentType,
+    );
+
+    const publicReservation =
+      await this.reservationPaymentAccessService.getReservationByToken(
+        dto.token,
+      );
+
+    if (
+      !publicReservation.availablePaymentTypes.includes(
+        dto.paymentType,
+      )
+    ) {
+      throw new ConflictException({
+        code: 'PAYMENT_TYPE_NOT_AVAILABLE',
+        message:
+          'Tipul de plată selectat nu mai este disponibil pentru această rezervare.',
+        paymentType: dto.paymentType,
+        availablePaymentTypes:
+          publicReservation.availablePaymentTypes,
+      });
+    }
+
+    return this.createCheckoutSession({
+      reservationId:
+        publicReservation.reservationId,
+      paymentType: dto.paymentType,
+    });
+  }
+
   async createCheckoutSession(
     dto: CreateCheckoutSessionDto,
   ): Promise<CheckoutResponse> {
-    this.validateInitialPaymentType(dto.paymentType);
+    this.validateInitialPaymentType(
+      dto.paymentType,
+    );
 
     const reservation =
       await this.prisma.reservation.findUnique({
         where: {
           id: dto.reservationId,
         },
+
         include: {
           guest: true,
+
           payments: {
             where: {
               status: PaymentStatus.PENDING,
               reservationChangeId: null,
+            },
+
+            orderBy: {
+              createdAt: 'desc',
             },
           },
         },
@@ -130,7 +208,9 @@ export class PaymentsService {
       });
     }
 
-    if (reservation.paidAmount.greaterThan(0)) {
+    if (
+      reservation.paidAmount.greaterThan(0)
+    ) {
       throw new ConflictException({
         code: 'RESERVATION_ALREADY_PAID',
         message:
@@ -153,9 +233,13 @@ export class PaymentsService {
       return this.mapCheckoutResponse({
         payment: existingPayment,
         reservationId: reservation.id,
+
         checkoutSessionId:
           existingPayment.stripeCheckoutSessionId,
-        checkoutUrl: existingPayment.paymentUrl,
+
+        checkoutUrl:
+          existingPayment.paymentUrl,
+
         expiresAt:
           reservation.paymentExpiresAt,
       });
@@ -167,33 +251,38 @@ export class PaymentsService {
         : reservation.depositAmount;
 
     if (amount.lessThanOrEqualTo(0)) {
-      throw new BadRequestException(
-        'Suma de plată trebuie să fie mai mare decât zero.',
-      );
+      throw new BadRequestException({
+        code: 'INVALID_PAYMENT_AMOUNT',
+        message:
+          'Suma de plată trebuie să fie mai mare decât zero.',
+      });
     }
 
-    const payment = await this.prisma.payment.create({
-      data: {
-        reservationId: reservation.id,
-        reservationChangeId: null,
+    const payment =
+      await this.prisma.payment.create({
+        data: {
+          reservationId: reservation.id,
+          reservationChangeId: null,
 
-        type: dto.paymentType,
-        status: PaymentStatus.PENDING,
-        provider: PaymentProvider.STRIPE,
+          type: dto.paymentType,
+          status: PaymentStatus.PENDING,
+          provider: PaymentProvider.STRIPE,
 
-        amount,
-        currency: 'RON',
-      },
-    });
+          amount,
+          currency: 'RON',
+        },
+      });
 
     try {
       const checkoutSession =
         await this.stripe.checkout.sessions.create({
           mode: 'payment',
 
-          customer_email: reservation.guest.email,
+          customer_email:
+            reservation.guest.email,
 
-          client_reference_id: reservation.id,
+          client_reference_id:
+            reservation.id,
 
           metadata: {
             flow: 'INITIAL_RESERVATION',
@@ -205,7 +294,8 @@ export class PaymentsService {
           payment_intent_data: {
             metadata: {
               flow: 'INITIAL_RESERVATION',
-              reservationId: reservation.id,
+              reservationId:
+                reservation.id,
               paymentId: payment.id,
             },
           },
@@ -213,23 +303,27 @@ export class PaymentsService {
           line_items: [
             {
               quantity: 1,
+
               price_data: {
                 currency: 'ron',
 
-                unit_amount: this.toStripeAmount(
-                  amount.toNumber(),
-                ),
+                unit_amount:
+                  this.toStripeAmount(
+                    amount.toNumber(),
+                  ),
 
                 product_data: {
                   name:
-                    dto.paymentType === PaymentType.FULL
+                    dto.paymentType ===
+                    PaymentType.FULL
                       ? 'Plată integrală rezervare Sunshine Resort'
                       : 'Avans rezervare Sunshine Resort',
 
-                  description: this.buildDescription(
-                    reservation.checkInDate,
-                    reservation.checkOutDate,
-                  ),
+                  description:
+                    this.buildDescription(
+                      reservation.checkInDate,
+                      reservation.checkOutDate,
+                    ),
                 },
               },
             },
@@ -248,9 +342,11 @@ export class PaymentsService {
         });
 
       if (!checkoutSession.url) {
-        throw new ConflictException(
-          'Stripe nu a returnat URL-ul sesiunii de plată.',
-        );
+        throw new ConflictException({
+          code: 'STRIPE_CHECKOUT_URL_MISSING',
+          message:
+            'Stripe nu a returnat URL-ul sesiunii de plată.',
+        });
       }
 
       const updatedPayment =
@@ -258,18 +354,26 @@ export class PaymentsService {
           where: {
             id: payment.id,
           },
+
           data: {
             stripeCheckoutSessionId:
               checkoutSession.id,
-            paymentUrl: checkoutSession.url,
+
+            paymentUrl:
+              checkoutSession.url,
           },
         });
 
       return this.mapCheckoutResponse({
         payment: updatedPayment,
         reservationId: reservation.id,
-        checkoutSessionId: checkoutSession.id,
-        checkoutUrl: checkoutSession.url,
+
+        checkoutSessionId:
+          checkoutSession.id,
+
+        checkoutUrl:
+          checkoutSession.url,
+
         expiresAt:
           reservation.paymentExpiresAt,
       });
@@ -291,6 +395,7 @@ export class PaymentsService {
         where: {
           id: dto.reservationChangeId,
         },
+
         include: {
           reservation: {
             include: {
@@ -301,8 +406,10 @@ export class PaymentsService {
           payments: {
             where: {
               status: PaymentStatus.PENDING,
-              type: PaymentType.REMAINING_BALANCE,
+              type:
+                PaymentType.REMAINING_BALANCE,
             },
+
             orderBy: {
               createdAt: 'desc',
             },
@@ -336,7 +443,8 @@ export class PaymentsService {
         code: 'RESERVATION_NOT_CONFIRMED',
         message:
           'Rezervarea asociată modificării nu mai este confirmată.',
-        currentStatus: change.reservation.status,
+        currentStatus:
+          change.reservation.status,
       });
     }
 
@@ -353,7 +461,9 @@ export class PaymentsService {
       });
     }
 
-    if (change.amountDue.lessThanOrEqualTo(0)) {
+    if (
+      change.amountDue.lessThanOrEqualTo(0)
+    ) {
       throw new BadRequestException({
         code: 'NO_ADDITIONAL_PAYMENT_REQUIRED',
         message:
@@ -374,27 +484,42 @@ export class PaymentsService {
     ) {
       return this.mapCheckoutResponse({
         payment: existingPayment,
-        reservationId: change.reservationId,
+        reservationId:
+          change.reservationId,
+
         checkoutSessionId:
           existingPayment.stripeCheckoutSessionId,
-        checkoutUrl: existingPayment.paymentUrl,
-        expiresAt: change.paymentExpiresAt,
+
+        checkoutUrl:
+          existingPayment.paymentUrl,
+
+        expiresAt:
+          change.paymentExpiresAt,
       });
     }
 
-    const payment = await this.prisma.payment.create({
-      data: {
-        reservationId: change.reservationId,
-        reservationChangeId: change.id,
+    const payment =
+      await this.prisma.payment.create({
+        data: {
+          reservationId:
+            change.reservationId,
 
-        type: PaymentType.REMAINING_BALANCE,
-        status: PaymentStatus.PENDING,
-        provider: PaymentProvider.STRIPE,
+          reservationChangeId:
+            change.id,
 
-        amount: change.amountDue,
-        currency: 'RON',
-      },
-    });
+          type:
+            PaymentType.REMAINING_BALANCE,
+
+          status:
+            PaymentStatus.PENDING,
+
+          provider:
+            PaymentProvider.STRIPE,
+
+          amount: change.amountDue,
+          currency: 'RON',
+        },
+      });
 
     try {
       const checkoutSession =
@@ -409,10 +534,15 @@ export class PaymentsService {
 
           metadata: {
             flow: 'RESERVATION_CHANGE',
+
             reservationId:
               change.reservationId,
-            reservationChangeId: change.id,
+
+            reservationChangeId:
+              change.id,
+
             paymentId: payment.id,
+
             paymentType:
               PaymentType.REMAINING_BALANCE,
           },
@@ -420,9 +550,13 @@ export class PaymentsService {
           payment_intent_data: {
             metadata: {
               flow: 'RESERVATION_CHANGE',
+
               reservationId:
                 change.reservationId,
-              reservationChangeId: change.id,
+
+              reservationChangeId:
+                change.id,
+
               paymentId: payment.id,
             },
           },
@@ -430,12 +564,14 @@ export class PaymentsService {
           line_items: [
             {
               quantity: 1,
+
               price_data: {
                 currency: 'ron',
 
-                unit_amount: this.toStripeAmount(
-                  change.amountDue.toNumber(),
-                ),
+                unit_amount:
+                  this.toStripeAmount(
+                    change.amountDue.toNumber(),
+                  ),
 
                 product_data: {
                   name:
@@ -465,9 +601,11 @@ export class PaymentsService {
         });
 
       if (!checkoutSession.url) {
-        throw new ConflictException(
-          'Stripe nu a returnat URL-ul sesiunii de plată.',
-        );
+        throw new ConflictException({
+          code: 'STRIPE_CHECKOUT_URL_MISSING',
+          message:
+            'Stripe nu a returnat URL-ul sesiunii de plată.',
+        });
       }
 
       const updatedPayment =
@@ -475,19 +613,30 @@ export class PaymentsService {
           where: {
             id: payment.id,
           },
+
           data: {
             stripeCheckoutSessionId:
               checkoutSession.id,
-            paymentUrl: checkoutSession.url,
+
+            paymentUrl:
+              checkoutSession.url,
           },
         });
 
       return this.mapCheckoutResponse({
         payment: updatedPayment,
-        reservationId: change.reservationId,
-        checkoutSessionId: checkoutSession.id,
-        checkoutUrl: checkoutSession.url,
-        expiresAt: change.paymentExpiresAt,
+
+        reservationId:
+          change.reservationId,
+
+        checkoutSessionId:
+          checkoutSession.id,
+
+        checkoutUrl:
+          checkoutSession.url,
+
+        expiresAt:
+          change.paymentExpiresAt,
       });
     } catch (error: unknown) {
       await this.markPaymentAsFailed(
@@ -518,11 +667,12 @@ export class PaymentsService {
     let event: Stripe.Event;
 
     try {
-      event = this.stripe.webhooks.constructEvent(
-        rawBody,
-        stripeSignature,
-        this.webhookSecret,
-      );
+      event =
+        this.stripe.webhooks.constructEvent(
+          rawBody,
+          stripeSignature,
+          this.webhookSecret,
+        );
     } catch (error: unknown) {
       throw new BadRequestException(
         error instanceof Error
@@ -534,9 +684,12 @@ export class PaymentsService {
     switch (event.type) {
       case 'checkout.session.completed':
       case 'checkout.session.async_payment_succeeded': {
-        const session = event.data.object;
+        const session =
+          event.data.object;
 
-        if (session.payment_status === 'paid') {
+        if (
+          session.payment_status === 'paid'
+        ) {
           await this.processSuccessfulCheckout(
             session,
             event.id,
@@ -551,6 +704,7 @@ export class PaymentsService {
           event.data.object,
           event.id,
         );
+
         break;
       }
 
@@ -560,6 +714,7 @@ export class PaymentsService {
           event.id,
           'Plata asincronă Stripe a eșuat.',
         );
+
         break;
       }
 
@@ -576,7 +731,9 @@ export class PaymentsService {
     session: Stripe.Checkout.Session,
     stripeEventId: string,
   ): Promise<void> {
-    const paymentId = session.metadata?.paymentId;
+    const paymentId =
+      session.metadata?.paymentId;
+
     const reservationId =
       session.metadata?.reservationId;
 
@@ -587,203 +744,325 @@ export class PaymentsService {
     }
 
     try {
-      await this.prisma.$transaction(
-        async (transaction) => {
-          const payment =
-            await transaction.payment.findUnique({
-              where: {
-                id: paymentId,
-              },
-            });
+      const notification =
+        await this.prisma.$transaction<
+          PaymentConfirmationNotification | null
+        >(
+          async (transaction) => {
+            const payment =
+              await transaction.payment.findUnique({
+                where: {
+                  id: paymentId,
+                },
+              });
 
-          if (!payment) {
-            throw new NotFoundException(
-              'Plata asociată webhook-ului nu a fost găsită.',
-            );
-          }
-
-          if (
-            payment.reservationId !== reservationId ||
-            payment.stripeCheckoutSessionId !==
-              session.id
-          ) {
-            throw new ConflictException({
-              code: 'PAYMENT_WEBHOOK_MISMATCH',
-              message:
-                'Datele sesiunii Stripe nu corespund plății interne.',
-            });
-          }
-
-          const reservation =
-            await transaction.reservation.findUnique({
-              where: {
-                id: reservationId,
-              },
-            });
-
-          if (!reservation) {
-            throw new NotFoundException(
-              'Rezervarea asociată plății nu a fost găsită.',
-            );
-          }
-
-          const isReservationChangePayment =
-            payment.type ===
-              PaymentType.REMAINING_BALANCE &&
-            payment.reservationChangeId !== null;
-
-          /**
-           * Webhook idempotent.
-           */
-          if (payment.status === PaymentStatus.PAID) {
-            if (isReservationChangePayment) {
-              const change =
-                await transaction.reservationChange.findUnique({
-                  where: {
-                    id: payment.reservationChangeId!,
-                  },
-                  select: {
-                    status: true,
-                  },
-                });
-
-              if (
-                change?.status ===
-                ReservationChangeStatus.APPLIED
-              ) {
-                return;
-              }
-            } else if (
-              reservation.status ===
-              ReservationStatus.CONFIRMED
-            ) {
-              return;
+            if (!payment) {
+              throw new NotFoundException(
+                'Plata asociată webhook-ului nu a fost găsită.',
+              );
             }
-          }
 
-          if (
-            !isReservationChangePayment &&
-            reservation.status !==
-              ReservationStatus.APPROVED_AWAITING_PAYMENT
-          ) {
-            throw new ConflictException({
-              code: 'RESERVATION_NOT_AWAITING_PAYMENT',
-              message:
-                'Rezervarea nu mai așteaptă confirmarea plății.',
-              currentStatus: reservation.status,
-            });
-          }
-
-          if (
-            isReservationChangePayment &&
-            reservation.status !==
-              ReservationStatus.CONFIRMED
-          ) {
-            throw new ConflictException({
-              code: 'RESERVATION_NOT_CONFIRMED',
-              message:
-                'Rezervarea asociată modificării nu mai este confirmată.',
-              currentStatus: reservation.status,
-            });
-          }
-
-          const stripeAmount =
-            session.amount_total ?? 0;
-
-          const expectedAmount =
-            this.toStripeAmount(
-              payment.amount.toNumber(),
-            );
-
-          if (stripeAmount !== expectedAmount) {
-            throw new ConflictException({
-              code: 'STRIPE_AMOUNT_MISMATCH',
-              message:
-                'Suma achitată prin Stripe nu corespunde plății interne.',
-              expectedAmount,
-              receivedAmount: stripeAmount,
-            });
-          }
-
-          const paymentIntentId =
-            typeof session.payment_intent === 'string'
-              ? session.payment_intent
-              : session.payment_intent?.id;
-
-          if (payment.status !== PaymentStatus.PAID) {
-            await transaction.payment.update({
-              where: {
-                id: payment.id,
-              },
-              data: {
-                status: PaymentStatus.PAID,
-                paidAt: new Date(),
-                providerEventId: stripeEventId,
-
-                stripePaymentIntentId:
-                  paymentIntentId ?? null,
-
-                failureReason: null,
-              },
-            });
-          }
-
-          if (isReservationChangePayment) {
-            if (!payment.reservationChangeId) {
+            if (
+              payment.reservationId !==
+                reservationId ||
+              payment.stripeCheckoutSessionId !==
+                session.id
+            ) {
               throw new ConflictException({
-                code: 'RESERVATION_CHANGE_REFERENCE_MISSING',
+                code: 'PAYMENT_WEBHOOK_MISMATCH',
                 message:
-                  'Plata diferenței nu are asociată solicitarea de modificare.',
+                  'Datele sesiunii Stripe nu corespund plății interne.',
               });
             }
 
-            await this.reservationChangeReviewService
-              .applyPaidChangeInTransaction(
+            const reservation =
+              await transaction.reservation.findUnique({
+                where: {
+                  id: reservationId,
+                },
+
+                include: {
+                  guest: true,
+
+                  rooms: {
+                    include: {
+                      roomType: true,
+                    },
+
+                    orderBy: {
+                      id: 'asc',
+                    },
+                  },
+                },
+              });
+
+            if (!reservation) {
+              throw new NotFoundException(
+                'Rezervarea asociată plății nu a fost găsită.',
+              );
+            }
+
+            const isReservationChangePayment =
+              payment.type ===
+                PaymentType.REMAINING_BALANCE &&
+              payment.reservationChangeId !==
+                null;
+
+            /*
+             * Webhook idempotent:
+             * evenimentele Stripe duplicate nu retrimit emailul
+             * și nu reaplică aceeași actualizare.
+             */
+            if (
+              payment.status ===
+              PaymentStatus.PAID
+            ) {
+              if (
+                isReservationChangePayment
+              ) {
+                const change =
+                  await transaction.reservationChange.findUnique({
+                    where: {
+                      id: payment.reservationChangeId!,
+                    },
+
+                    select: {
+                      status: true,
+                    },
+                  });
+
+                if (
+                  change?.status ===
+                  ReservationChangeStatus.APPLIED
+                ) {
+                  return null;
+                }
+              } else if (
+                reservation.status ===
+                ReservationStatus.CONFIRMED
+              ) {
+                return null;
+              }
+            }
+
+            if (
+              !isReservationChangePayment &&
+              reservation.status !==
+                ReservationStatus.APPROVED_AWAITING_PAYMENT
+            ) {
+              throw new ConflictException({
+                code: 'RESERVATION_NOT_AWAITING_PAYMENT',
+                message:
+                  'Rezervarea nu mai așteaptă confirmarea plății.',
+                currentStatus:
+                  reservation.status,
+              });
+            }
+
+            if (
+              isReservationChangePayment &&
+              reservation.status !==
+                ReservationStatus.CONFIRMED
+            ) {
+              throw new ConflictException({
+                code: 'RESERVATION_NOT_CONFIRMED',
+                message:
+                  'Rezervarea asociată modificării nu mai este confirmată.',
+                currentStatus:
+                  reservation.status,
+              });
+            }
+
+            const stripeAmount =
+              session.amount_total ?? 0;
+
+            const expectedAmount =
+              this.toStripeAmount(
+                payment.amount.toNumber(),
+              );
+
+            if (
+              stripeAmount !==
+              expectedAmount
+            ) {
+              throw new ConflictException({
+                code: 'STRIPE_AMOUNT_MISMATCH',
+                message:
+                  'Suma achitată prin Stripe nu corespunde plății interne.',
+                expectedAmount,
+                receivedAmount:
+                  stripeAmount,
+              });
+            }
+
+            const paymentIntentId =
+              typeof session.payment_intent ===
+              'string'
+                ? session.payment_intent
+                : session.payment_intent?.id;
+
+            const paymentConfirmedAt =
+              new Date();
+
+            if (
+              payment.status !==
+              PaymentStatus.PAID
+            ) {
+              await transaction.payment.update({
+                where: {
+                  id: payment.id,
+                },
+
+                data: {
+                  status:
+                    PaymentStatus.PAID,
+
+                  paidAt:
+                    paymentConfirmedAt,
+
+                  providerEventId:
+                    stripeEventId,
+
+                  stripePaymentIntentId:
+                    paymentIntentId ?? null,
+
+                  failureReason: null,
+                },
+              });
+            }
+
+            if (
+              isReservationChangePayment
+            ) {
+              if (
+                !payment.reservationChangeId
+              ) {
+                throw new ConflictException({
+                  code: 'RESERVATION_CHANGE_REFERENCE_MISSING',
+                  message:
+                    'Plata diferenței nu are asociată solicitarea de modificare.',
+                });
+              }
+
+              await this.reservationChangeReviewService.applyPaidChangeInTransaction(
                 transaction,
                 payment.reservationChangeId,
-                new Date(),
+                paymentConfirmedAt,
+              );
+
+              await transaction.reservation.update({
+                where: {
+                  id: reservation.id,
+                },
+
+                data: {
+                  paidAmount:
+                    reservation.paidAmount.plus(
+                      payment.amount,
+                    ),
+                },
+              });
+
+              return null;
+            }
+
+            await this.allocationService.allocateRoomsInTransaction(
+              transaction,
+              reservation.id,
+            );
+
+            const confirmationUpdate =
+              this.statusService.buildConfirmationUpdate(
+                reservation.status,
               );
 
             await transaction.reservation.update({
               where: {
                 id: reservation.id,
               },
+
               data: {
+                ...confirmationUpdate,
+
                 paidAmount:
-                  reservation.paidAmount.plus(
-                    payment.amount,
-                  ),
+                  payment.amount,
+
+                /*
+                 * Linkul public de plată devine inutilizabil
+                 * imediat după confirmarea plății.
+                 */
+                paymentAccessTokenHash:
+                  null,
+
+                paymentAccessTokenExpiresAt:
+                  null,
               },
             });
 
-            return;
-          }
+            const roomNames =
+              reservation.rooms.map(
+                (reservationRoom) =>
+                  reservation.locale ===
+                  Locale.EN
+                    ? reservationRoom.roomType
+                        .nameEn
+                    : reservationRoom.roomType
+                        .nameRo,
+              );
 
-          await this.allocationService.allocateRoomsInTransaction(
-            transaction,
-            reservation.id,
-          );
+            return {
+              reservationId:
+                reservation.id,
 
-          const confirmationUpdate =
-            this.statusService.buildConfirmationUpdate(
-              reservation.status,
-            );
+              guest: {
+                firstName:
+                  reservation.guest.firstName,
 
-          await transaction.reservation.update({
-            where: {
-              id: reservation.id,
-            },
-            data: {
-              ...confirmationUpdate,
-              paidAmount: payment.amount,
-            },
-          });
-        },
-        {
-          isolationLevel:
-            Prisma.TransactionIsolationLevel.Serializable,
-        },
-      );
+                email:
+                  reservation.guest.email,
+              },
+
+              locale:
+                reservation.locale,
+
+              checkInDate:
+                reservation.checkInDate,
+
+              checkOutDate:
+                reservation.checkOutDate,
+
+              nights:
+                reservation.nights,
+
+              adults:
+                reservation.adults,
+
+              roomNames,
+
+              amountPaid:
+                payment.amount.toNumber(),
+
+              totalPrice:
+                reservation.totalPrice.toNumber(),
+            };
+          },
+          {
+            isolationLevel:
+              Prisma.TransactionIsolationLevel.Serializable,
+          },
+        );
+
+      /*
+       * Emailul se trimite după commit.
+       * ReservationNotificationService gestionează intern
+       * eventualele erori Resend, astfel încât webhook-ul
+       * Stripe să poată răspunde cu 200.
+       */
+      if (notification) {
+        await this.reservationNotificationService.sendPaymentConfirmed(
+          notification,
+        );
+      }
     } catch (error: unknown) {
       if (
         error instanceof
@@ -805,7 +1084,8 @@ export class PaymentsService {
     session: Stripe.Checkout.Session,
     stripeEventId: string,
   ): Promise<void> {
-    const paymentId = session.metadata?.paymentId;
+    const paymentId =
+      session.metadata?.paymentId;
 
     if (!paymentId) {
       return;
@@ -827,10 +1107,17 @@ export class PaymentsService {
         id: payment.id,
         status: PaymentStatus.PENDING,
       },
+
       data: {
-        status: PaymentStatus.CANCELLED,
-        cancelledAt: new Date(),
-        providerEventId: stripeEventId,
+        status:
+          PaymentStatus.CANCELLED,
+
+        cancelledAt:
+          new Date(),
+
+        providerEventId:
+          stripeEventId,
+
         failureReason:
           'Sesiunea Stripe Checkout a expirat.',
       },
@@ -840,16 +1127,31 @@ export class PaymentsService {
       await this.prisma.reservationChange.updateMany({
         where: {
           id: payment.reservationChangeId,
+
           status:
             ReservationChangeStatus.APPROVED_AWAITING_PAYMENT,
         },
+
         data: {
-          status: ReservationChangeStatus.EXPIRED,
-          expiredAt: new Date(),
-          paymentExpiresAt: null,
+          status:
+            ReservationChangeStatus.EXPIRED,
+
+          expiredAt:
+            new Date(),
+
+          paymentExpiresAt:
+            null,
         },
       });
+
+      return;
     }
+
+    /*
+     * Expirarea unei singure sesiuni Stripe nu expiră automat
+     * rezervarea dacă termenul general de 24h încă este activ.
+     * ReservationExpirationService gestionează termenul final.
+     */
   }
 
   private async processFailedCheckout(
@@ -857,7 +1159,8 @@ export class PaymentsService {
     stripeEventId: string,
     reason: string,
   ): Promise<void> {
-    const paymentId = session.metadata?.paymentId;
+    const paymentId =
+      session.metadata?.paymentId;
 
     if (!paymentId) {
       return;
@@ -868,11 +1171,19 @@ export class PaymentsService {
         id: paymentId,
         status: PaymentStatus.PENDING,
       },
+
       data: {
-        status: PaymentStatus.FAILED,
-        failedAt: new Date(),
-        providerEventId: stripeEventId,
-        failureReason: reason,
+        status:
+          PaymentStatus.FAILED,
+
+        failedAt:
+          new Date(),
+
+        providerEventId:
+          stripeEventId,
+
+        failureReason:
+          reason,
       },
     });
   }
@@ -885,7 +1196,9 @@ export class PaymentsService {
       PaymentType.FULL,
     ];
 
-    if (!allowedTypes.includes(paymentType)) {
+    if (
+      !allowedTypes.includes(paymentType)
+    ) {
       throw new BadRequestException({
         code: 'INVALID_INITIAL_PAYMENT_TYPE',
         message:
@@ -902,9 +1215,13 @@ export class PaymentsService {
       where: {
         id: paymentId,
       },
+
       data: {
-        status: PaymentStatus.FAILED,
-        failedAt: new Date(),
+        status:
+          PaymentStatus.FAILED,
+
+        failedAt:
+          new Date(),
 
         failureReason:
           error instanceof Error
@@ -922,27 +1239,48 @@ export class PaymentsService {
       amount: Prisma.Decimal;
       currency: string;
     };
+
     reservationId: string;
+
     checkoutSessionId: string;
     checkoutUrl: string;
+
     expiresAt: Date | null;
   }): CheckoutResponse {
     return {
-      paymentId: params.payment.id,
-      reservationId: params.reservationId,
-      paymentType: params.payment.type,
-      paymentStatus: params.payment.status,
-      amount: params.payment.amount.toNumber(),
-      currency: params.payment.currency,
+      paymentId:
+        params.payment.id,
+
+      reservationId:
+        params.reservationId,
+
+      paymentType:
+        params.payment.type,
+
+      paymentStatus:
+        params.payment.status,
+
+      amount:
+        params.payment.amount.toNumber(),
+
+      currency:
+        params.payment.currency,
+
       checkoutSessionId:
         params.checkoutSessionId,
-      checkoutUrl: params.checkoutUrl,
+
+      checkoutUrl:
+        params.checkoutUrl,
+
       expiresAt:
-        params.expiresAt?.toISOString() ?? null,
+        params.expiresAt?.toISOString() ??
+        null,
     };
   }
 
-  private toStripeAmount(amount: number): number {
+  private toStripeAmount(
+    amount: number,
+  ): number {
     return new Prisma.Decimal(amount)
       .mul(100)
       .toDecimalPlaces(0)
@@ -955,10 +1293,16 @@ export class PaymentsService {
   ): string {
     return `Sejur ${this.formatDate(
       checkInDate,
-    )} – ${this.formatDate(checkOutDate)}`;
+    )} – ${this.formatDate(
+      checkOutDate,
+    )}`;
   }
 
-  private formatDate(date: Date): string {
-    return date.toISOString().slice(0, 10);
+  private formatDate(
+    date: Date,
+  ): string {
+    return date
+      .toISOString()
+      .slice(0, 10);
   }
 }

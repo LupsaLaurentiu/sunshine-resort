@@ -5,12 +5,12 @@ import {
   Patch,
   UseGuards,
 } from '@nestjs/common';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { CurrentAdmin } from '../common/decorators/current-admin.decorator';
-import type { CurrentAdminData } from '../common/decorators/current-admin.decorator';
-import { ApproveReservationChangeDto } from './dto/approve-reservation-change.dto';
-import { RejectReservationChangeDto } from './dto/reject-reservation-change.dto';
-import { ReservationChangeReviewService } from './services/reservation-change-review.service';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { CurrentAdmin } from '../../common/decorators/current-admin.decorator';
+import type { CurrentAdminData } from '../../common/decorators/current-admin.decorator';
+import { ApproveReservationChangeDto } from '../dto/approve-reservation-change.dto';
+import { RejectReservationChangeDto } from '../dto/reject-reservation-change.dto';
+import { ReservationChangeReviewService } from '../services/reservation-change-review.service';
 
 @Controller('reservation-changes')
 @UseGuards(JwtAuthGuard)
