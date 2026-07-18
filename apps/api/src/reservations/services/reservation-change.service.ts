@@ -12,6 +12,7 @@ import {
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateReservationChangeDto } from '../dto/create-reservation-change.dto';
 import { ReservationPricingService } from './reservation-pricing.service';
+import { ReservationNotificationService } from './reservation-notification.service';
 
 const INVENTORY_BLOCKING_STATUSES: ReservationStatus[] = [
   ReservationStatus.PENDING_APPROVAL,
@@ -28,6 +29,7 @@ export class ReservationChangeService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly pricingService: ReservationPricingService,
+    private readonly reservationNotificationService: ReservationNotificationService,
   ) {}
 
   async create(
@@ -60,6 +62,7 @@ export class ReservationChangeService {
           id: reservationId,
         },
         include: {
+          guest: true,
           rooms: {
             include: {
               roomType: true,
@@ -203,7 +206,41 @@ export class ReservationChangeService {
             paymentExpiresAt: null,
           },
         });
+        await this.reservationNotificationService
+        .sendReservationChangeRequestedToAdmin({
+          reservationId: reservation.id,
+          reservationChangeId: reservationChange.id,
 
+          guest: {
+            firstName: reservation.guest.firstName,
+            lastName: reservation.guest.lastName,
+            email: reservation.guest.email,
+            phone: reservation.guest.phone,
+          },
+
+          currentCheckInDate: reservation.checkInDate,
+          currentCheckOutDate: reservation.checkOutDate,
+
+          requestedCheckInDate:
+            reservationChange.requestedCheckInDate,
+
+          requestedCheckOutDate:
+            reservationChange.requestedCheckOutDate,
+
+          roomNames: reservation.rooms.map(
+            (room) =>
+              reservation.locale === 'EN'
+                ? room.roomType.nameEn
+                : room.roomType.nameRo,
+          ),
+
+          guestReason:
+            reservationChange.guestReason,
+
+          approvalExpiresAt:
+            reservationChange.approvalExpiresAt,
+        });
+        
       return {
         id: reservationChange.id,
         reservationId: reservation.id,

@@ -257,10 +257,12 @@ function formatDate(
 }
 
 const paragraphStyle: React.CSSProperties = {
-  margin: '0 0 24px',
-  color: '#d0cbc2',
-  fontSize: '16px',
-  lineHeight: '29px',
+  margin: '0 0 28px',
+  color: '#D8D2C8',
+  fontFamily:
+    'Baskerville, Georgia, "Times New Roman", serif',
+  fontSize: '20px',
+  lineHeight: '34px',
 };
 
 const detailsCardStyle: React.CSSProperties = {
@@ -315,10 +317,12 @@ const detailLabelStyle: React.CSSProperties = {
 
 const detailValueStyle: React.CSSProperties = {
   margin: '9px 0',
-  color: '#f1ede6',
-  fontSize: '14px',
-  fontWeight: 600,
-  lineHeight: '20px',
+  color: '#F1EDE6',
+  fontFamily:
+    'Baskerville, Georgia, "Times New Roman", serif',
+  fontSize: '16px',
+  fontWeight: 400,
+  lineHeight: '24px',
   textAlign: 'right',
 };
 

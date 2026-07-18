@@ -218,10 +218,12 @@ function formatDate(
 }
 
 const paragraphStyle: React.CSSProperties = {
-  margin: '0 0 20px',
-  color: '#d0cbc2',
-  fontSize: '16px',
-  lineHeight: '29px',
+  margin: '0 0 28px',
+  color: '#D8D2C8',
+  fontFamily:
+    'Baskerville, Georgia, "Times New Roman", serif',
+  fontSize: '20px',
+  lineHeight: '34px',
 };
 
 const stayCardStyle: React.CSSProperties = {

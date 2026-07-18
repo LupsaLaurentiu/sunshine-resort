@@ -19,6 +19,7 @@ import { ReservationPricingService } from './services/reservation-pricing.servic
 import { ReservationReviewService } from './services/reservation-review.service';
 import { ReservationStatusService } from './services/reservation-status.service';
 import { ReservationEmailSchedulerController } from './controllers/reservation-email-scheduler.controller';
+import { ReservationLifecycleSchedulerService } from './services/reservation-lifecycle-scheduler.service';
 
 @Module({
   imports: [AvailabilityModule],
@@ -46,6 +47,7 @@ import { ReservationEmailSchedulerController } from './controllers/reservation-e
     ReservationNotificationService,
     ReservationPaymentAccessService,
     ReservationEmailSchedulerService,
+    ReservationLifecycleSchedulerService,
   ],
 
   exports: [

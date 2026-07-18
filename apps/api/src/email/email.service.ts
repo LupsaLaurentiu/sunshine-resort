@@ -12,6 +12,10 @@ import {
   ReservationEmailBuilder,
   type ReservationEmailLocale,
 } from './builders/reservation-email.builder';
+import { AdminReservationChangeRequestedEmail } from './templates/AdminReservationChangeRequestedEmail';
+import { AdminReservationCreatedEmail } from './templates/AdminReservationCreatedEmail';
+import { AdminPaymentConfirmedEmail } from './templates/AdminPaymentConfirmedEmail';
+import { AdminReservationCancelledEmail } from './templates/AdminReservationCancelledEmail';
 import { TestEmail } from './templates/TestEmail';
 
 export type EmailTag = {
@@ -108,6 +112,29 @@ export type SendReservationCancelledEmailParams = {
   locale?: ReservationEmailLocale;
 };
 
+export type SendAdminReservationChangeRequestedEmailParams = {
+  to: string;
+
+  reservationId: string;
+  reservationChangeId: string;
+
+  guestFirstName: string;
+  guestLastName: string;
+  guestEmail: string;
+  guestPhone: string;
+
+  currentCheckIn: Date | string;
+  currentCheckOut: Date | string;
+
+  requestedCheckIn: Date | string;
+  requestedCheckOut: Date | string;
+
+  roomNames: string[];
+
+  guestReason?: string | null;
+  approvalDeadline?: Date | string | null;
+};
+
 export type SendSevenDayReminderEmailParams = {
   to: string;
   guestFirstName: string;
@@ -171,6 +198,87 @@ export type SendPostStayEmailParams = {
   directBookingUrl?: string;
 
   locale?: ReservationEmailLocale;
+};
+
+export type SendAdminReservationCreatedEmailParams = {
+  to: string;
+
+  reservationId: string;
+
+  guestFirstName: string;
+  guestLastName: string;
+  guestEmail: string;
+  guestPhone: string;
+  guestCountry?: string | null;
+
+  checkIn: Date | string;
+  checkOut: Date | string;
+
+  nights: number;
+  adults: number;
+
+  roomNames: string[];
+
+  totalPrice: number;
+  depositAmount: number;
+
+  guestNotes?: string | null;
+  approvalDeadline?: Date | string | null;
+};
+
+export type SendAdminPaymentConfirmedEmailParams = {
+  to: string;
+
+  reservationId: string;
+
+  guestFirstName: string;
+  guestLastName: string;
+  guestEmail: string;
+  guestPhone: string;
+
+  checkIn: Date | string;
+  checkOut: Date | string;
+
+  nights: number;
+  adults: number;
+
+  roomNames: string[];
+
+  paymentType: string;
+  amountPaid: number;
+  totalPrice: number;
+  remainingAmount: number;
+
+  paymentId: string;
+  stripePaymentIntentId?: string | null;
+  paidAt: Date | string;
+};
+
+export type SendAdminReservationCancelledEmailParams = {
+  to: string;
+
+  reservationId: string;
+
+  guestFirstName: string;
+  guestLastName: string;
+  guestEmail: string;
+  guestPhone: string;
+
+  checkIn: Date | string;
+  checkOut: Date | string;
+
+  nights: number;
+  adults: number;
+
+  roomNames: string[];
+
+  cancellationReason: string;
+
+  previouslyPaidAmount: number;
+  refundedAmount: number;
+  retainedAmount: number;
+
+  cancelledAt: Date | string;
 };
 
 @Injectable()
@@ -623,6 +731,110 @@ export class EmailService implements OnModuleInit {
     });
   }
 
+  async sendAdminReservationChangeRequestedEmail(
+    params: SendAdminReservationChangeRequestedEmailParams,
+  ): Promise<SendEmailResult> {
+    const guestFullName =
+      `${params.guestFirstName} ${params.guestLastName}`.trim();
+
+    const subject =
+      `Cerere nouă de modificare – ${guestFullName}`;
+
+    const emailComponent =
+      createElement(
+        AdminReservationChangeRequestedEmail,
+        {
+          reservationId:
+            params.reservationId,
+
+          reservationChangeId:
+            params.reservationChangeId,
+
+          guestFirstName:
+            params.guestFirstName,
+
+          guestLastName:
+            params.guestLastName,
+
+          guestEmail:
+            params.guestEmail,
+
+          guestPhone:
+            params.guestPhone,
+
+          currentCheckIn:
+            this.formatDateValue(
+              params.currentCheckIn,
+            ),
+
+          currentCheckOut:
+            this.formatDateValue(
+              params.currentCheckOut,
+            ),
+
+          requestedCheckIn:
+            this.formatDateValue(
+              params.requestedCheckIn,
+            ),
+
+          requestedCheckOut:
+            this.formatDateValue(
+              params.requestedCheckOut,
+            ),
+
+          roomNames:
+            params.roomNames,
+
+          guestReason:
+            params.guestReason ?? null,
+
+          approvalDeadline:
+            params.approvalDeadline
+              ? this.formatDateTimeValue(
+                  params.approvalDeadline,
+                )
+              : null,
+        },
+      );
+
+    const html =
+      await render(emailComponent);
+
+    const text =
+      await render(emailComponent, {
+        plainText: true,
+      });
+
+    return this.sendEmail({
+      to: params.to,
+      subject,
+      html,
+      text,
+
+      tags: [
+        {
+          name: 'type',
+          value:
+            'admin-reservation-change-requested',
+        },
+        {
+          name: 'reservation_id',
+          value:
+            this.normalizeTagValue(
+              params.reservationId,
+            ),
+        },
+        {
+          name: 'reservation_change_id',
+          value:
+            this.normalizeTagValue(
+              params.reservationChangeId,
+            ),
+        },
+      ],
+    });
+  }
+
   async sendSevenDayReminderEmail(
     params: SendSevenDayReminderEmailParams,
   ): Promise<SendEmailResult> {
@@ -796,6 +1008,313 @@ export class EmailService implements OnModuleInit {
         ),
     });
   }
+  async sendAdminReservationCreatedEmail(
+      params: SendAdminReservationCreatedEmailParams,
+    ): Promise<SendEmailResult> {
+      const guestFullName =
+        `${params.guestFirstName} ${params.guestLastName}`.trim();
+
+      const subject =
+        `Cerere nouă de rezervare – ${guestFullName}`;
+
+      const emailComponent = createElement(
+        AdminReservationCreatedEmail,
+        {
+          reservationId:
+            params.reservationId,
+
+          guestFirstName:
+            params.guestFirstName,
+
+          guestLastName:
+            params.guestLastName,
+
+          guestEmail:
+            params.guestEmail,
+
+          guestPhone:
+            params.guestPhone,
+
+          guestCountry:
+            params.guestCountry ?? null,
+
+          checkIn:
+            this.formatDateValue(
+              params.checkIn,
+            ),
+
+          checkOut:
+            this.formatDateValue(
+              params.checkOut,
+            ),
+
+          nights:
+            params.nights,
+
+          adults:
+            params.adults,
+
+          roomNames:
+            params.roomNames,
+
+          totalPrice:
+            params.totalPrice,
+
+          depositAmount:
+            params.depositAmount,
+
+          guestNotes:
+            params.guestNotes ?? null,
+
+          approvalDeadline:
+            params.approvalDeadline
+              ? this.formatDateTimeValue(
+                  params.approvalDeadline,
+                )
+              : null,
+        },
+      );
+
+      const html = await render(
+        emailComponent,
+      );
+
+      const text = await render(
+        emailComponent,
+        {
+          plainText: true,
+        },
+      );
+
+      return this.sendEmail({
+        to: params.to,
+        subject,
+        html,
+        text,
+
+        tags: [
+          {
+            name: 'type',
+            value:
+              'admin-reservation-created',
+          },
+          {
+            name: 'reservation_id',
+            value:
+              this.normalizeTagValue(
+                params.reservationId,
+              ),
+          },
+        ],
+      });
+    }
+
+    async sendAdminPaymentConfirmedEmail(
+      params: SendAdminPaymentConfirmedEmailParams,
+    ): Promise<SendEmailResult> {
+      const guestFullName =
+        `${params.guestFirstName} ${params.guestLastName}`.trim();
+
+      const subject =
+        `Plată confirmată – ${guestFullName}`;
+
+      const emailComponent =
+        createElement(
+          AdminPaymentConfirmedEmail,
+          {
+            reservationId:
+              params.reservationId,
+
+            guestFirstName:
+              params.guestFirstName,
+
+            guestLastName:
+              params.guestLastName,
+
+            guestEmail:
+              params.guestEmail,
+
+            guestPhone:
+              params.guestPhone,
+
+            checkIn:
+              this.formatDateValue(
+                params.checkIn,
+              ),
+
+            checkOut:
+              this.formatDateValue(
+                params.checkOut,
+              ),
+
+            nights:
+              params.nights,
+
+            adults:
+              params.adults,
+
+            roomNames:
+              params.roomNames,
+
+            paymentType:
+              params.paymentType,
+
+            amountPaid:
+              params.amountPaid,
+
+            totalPrice:
+              params.totalPrice,
+
+            remainingAmount:
+              params.remainingAmount,
+
+            paymentId:
+              params.paymentId,
+
+            stripePaymentIntentId:
+              params.stripePaymentIntentId ??
+              null,
+
+            paidAt:
+              this.formatDateTimeValue(
+                params.paidAt,
+              ),
+          },
+        );
+
+      const html =
+        await render(emailComponent);
+
+      const text =
+        await render(emailComponent, {
+          plainText: true,
+        });
+
+      return this.sendEmail({
+        to: params.to,
+        subject,
+        html,
+        text,
+
+        tags: [
+          {
+            name: 'type',
+            value:
+              'admin-payment-confirmed',
+          },
+          {
+            name: 'reservation_id',
+            value:
+              this.normalizeTagValue(
+                params.reservationId,
+              ),
+          },
+          {
+            name: 'payment_id',
+            value:
+              this.normalizeTagValue(
+                params.paymentId,
+              ),
+          },
+        ],
+      });
+    }
+
+    async sendAdminReservationCancelledEmail(
+    params: SendAdminReservationCancelledEmailParams,
+  ): Promise<SendEmailResult> {
+    const guestFullName =
+      `${params.guestFirstName} ${params.guestLastName}`.trim();
+
+    const subject =
+      `Rezervare anulată – ${guestFullName}`;
+
+    const emailComponent = createElement(
+      AdminReservationCancelledEmail,
+      {
+        reservationId:
+          params.reservationId,
+
+        guestFirstName:
+          params.guestFirstName,
+
+        guestLastName:
+          params.guestLastName,
+
+        guestEmail:
+          params.guestEmail,
+
+        guestPhone:
+          params.guestPhone,
+
+        checkIn:
+          this.formatDateValue(
+            params.checkIn,
+          ),
+
+        checkOut:
+          this.formatDateValue(
+            params.checkOut,
+          ),
+
+        nights:
+          params.nights,
+
+        adults:
+          params.adults,
+
+        roomNames:
+          params.roomNames,
+
+        cancellationReason:
+          params.cancellationReason,
+
+        previouslyPaidAmount:
+          params.previouslyPaidAmount,
+
+        refundedAmount:
+          params.refundedAmount,
+
+        retainedAmount:
+          params.retainedAmount,
+
+        cancelledAt:
+          this.formatDateTimeValue(
+            params.cancelledAt,
+          ),
+      },
+    );
+
+    const html =
+      await render(emailComponent);
+
+    const text =
+      await render(emailComponent, {
+        plainText: true,
+      });
+
+    return this.sendEmail({
+      to: params.to,
+      subject,
+      html,
+      text,
+
+      tags: [
+        {
+          name: 'type',
+          value:
+            'admin-reservation-cancelled',
+        },
+        {
+          name: 'reservation_id',
+          value:
+            this.normalizeTagValue(
+              params.reservationId,
+            ),
+        },
+      ],
+    });
+  }
 
   private buildReservationTags(
     type: string,
@@ -867,5 +1386,27 @@ export class EmailService implements OnModuleInit {
         '-',
       )
       .slice(0, 256);
+  }
+
+  private formatDateValue(
+    value: Date | string,
+  ): string {
+    if (value instanceof Date) {
+      return value
+        .toISOString()
+        .slice(0, 10);
+    }
+
+    return value.slice(0, 10);
+  }
+
+  private formatDateTimeValue(
+    value: Date | string,
+  ): string {
+    if (value instanceof Date) {
+      return value.toISOString();
+    }
+
+    return value;
   }
 }

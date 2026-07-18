@@ -5,14 +5,15 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
+  Locale,
   PaymentProvider,
   PaymentStatus,
   Prisma,
-  ReservationStatus,
 } from '@prisma/client';
 import Stripe from 'stripe';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CancelReservationDto } from '../dto/cancel-reservation.dto';
+import { ReservationNotificationService } from './reservation-notification.service';
 import { ReservationStatusService } from './reservation-status.service';
 
 type RefundPlan = {
@@ -32,15 +33,22 @@ export class ReservationCancellationService {
     private readonly prisma: PrismaService,
     private readonly configService: ConfigService,
     private readonly statusService: ReservationStatusService,
+    private readonly reservationNotificationService: ReservationNotificationService,
   ) {
     const stripeSecretKey =
-      this.configService.get<string>('STRIPE_SECRET_KEY');
+      this.configService.get<string>(
+        'STRIPE_SECRET_KEY',
+      );
 
     if (!stripeSecretKey) {
-      throw new Error('STRIPE_SECRET_KEY is not configured.');
+      throw new Error(
+        'STRIPE_SECRET_KEY is not configured.',
+      );
     }
 
-    this.stripe = new Stripe(stripeSecretKey);
+    this.stripe = new Stripe(
+      stripeSecretKey,
+    );
   }
 
   async cancel(
@@ -53,14 +61,17 @@ export class ReservationCancellationService {
         where: {
           id: reservationId,
         },
+
         include: {
           guest: true,
+
           rooms: {
             include: {
               roomType: true,
               room: true,
             },
           },
+
           payments: {
             where: {
               status: {
@@ -70,6 +81,7 @@ export class ReservationCancellationService {
                 ],
               },
             },
+
             orderBy: {
               paidAt: 'asc',
             },
@@ -89,27 +101,41 @@ export class ReservationCancellationService {
         dto.reason,
       );
 
-    const refundPlan = this.calculateRefundPlan({
-      checkInDate: reservation.checkInDate,
-      paidAmount: reservation.paidAmount,
-      depositAmount: reservation.depositAmount,
-    });
+    const refundPlan =
+      this.calculateRefundPlan({
+        checkInDate:
+          reservation.checkInDate,
 
-    const refundablePayments = reservation.payments.filter(
-      (payment) =>
-        payment.provider === PaymentProvider.STRIPE &&
-        payment.status === PaymentStatus.PAID &&
-        payment.stripePaymentIntentId !== null &&
-        payment.amount
-          .minus(payment.refundedAmount)
-          .greaterThan(0),
-    );
+        paidAmount:
+          reservation.paidAmount,
+
+        depositAmount:
+          reservation.depositAmount,
+      });
+
+    const refundablePayments =
+      reservation.payments.filter(
+        (payment) =>
+          payment.provider ===
+            PaymentProvider.STRIPE &&
+          payment.status ===
+            PaymentStatus.PAID &&
+          payment.stripePaymentIntentId !==
+            null &&
+          payment.amount
+            .minus(
+              payment.refundedAmount,
+            )
+            .greaterThan(0),
+      );
 
     const availableStripeRefundAmount =
       refundablePayments.reduce(
         (total, payment) =>
           total.plus(
-            payment.amount.minus(payment.refundedAmount),
+            payment.amount.minus(
+              payment.refundedAmount,
+            ),
           ),
         new Prisma.Decimal(0),
       );
@@ -120,25 +146,32 @@ export class ReservationCancellationService {
       )
     ) {
       throw new ConflictException({
-        code: 'INSUFFICIENT_REFUNDABLE_STRIPE_AMOUNT',
+        code:
+          'INSUFFICIENT_REFUNDABLE_STRIPE_AMOUNT',
+
         message:
           'Suma rambursabilă nu poate fi asociată integral plăților Stripe existente.',
+
         requestedRefund:
           refundPlan.refundAmount.toNumber(),
+
         availableStripeRefund:
           availableStripeRefundAmount.toNumber(),
       });
     }
 
     /*
-     * Refundurile sunt create înaintea tranzacției DB deoarece Stripe
-     * este un sistem extern și nu poate participa la tranzacția Prisma.
+     * Refundurile sunt create înaintea tranzacției DB deoarece
+     * Stripe este un sistem extern și nu poate participa la
+     * tranzacția Prisma.
      *
-     * Folosim idempotencyKey pentru a evita dublarea unui refund dacă
-     * requestul este retrimis.
+     * Folosim idempotencyKey pentru a evita dublarea unui refund
+     * dacă requestul este retrimis.
      */
     const processedRefunds =
-      refundPlan.refundAmount.greaterThan(0)
+      refundPlan.refundAmount.greaterThan(
+        0,
+      )
         ? await this.createStripeRefunds(
             reservation.id,
             refundablePayments,
@@ -150,7 +183,9 @@ export class ReservationCancellationService {
       const updatedReservation =
         await this.prisma.$transaction(
           async (transaction) => {
-            for (const processedRefund of processedRefunds) {
+            for (
+              const processedRefund of processedRefunds
+            ) {
               const payment =
                 await transaction.payment.findUnique({
                   where: {
@@ -178,15 +213,24 @@ export class ReservationCancellationService {
                 where: {
                   id: payment.id,
                 },
+
                 data: {
-                  refundedAmount: newRefundedAmount,
+                  refundedAmount:
+                    newRefundedAmount,
+
                   stripeRefundId:
                     processedRefund.stripeRefundId,
-                  refundedAt: new Date(),
-                  refundReason: dto.reason.trim(),
-                  status: fullyRefunded
-                    ? PaymentStatus.REFUNDED
-                    : PaymentStatus.PAID,
+
+                  refundedAt:
+                    new Date(),
+
+                  refundReason:
+                    dto.reason.trim(),
+
+                  status:
+                    fullyRefunded
+                      ? PaymentStatus.REFUNDED
+                      : PaymentStatus.PAID,
                 },
               });
             }
@@ -205,63 +249,204 @@ export class ReservationCancellationService {
                   id: reservation.id,
                   status: reservation.status,
                 },
+
                 data: {
                   ...cancellationUpdate,
-                  paidAmount: remainingPaidAmount,
-                  adminNotes: this.buildAdminNotes(
-                    reservation.adminNotes,
-                    dto.adminNotes,
-                    adminId,
-                    refundPlan,
-                  ),
+
+                  paidAmount:
+                    remainingPaidAmount,
+
+                  adminNotes:
+                    this.buildAdminNotes(
+                      reservation.adminNotes,
+                      dto.adminNotes,
+                      adminId,
+                      refundPlan,
+                    ),
                 },
               });
 
-            if (updateResult.count !== 1) {
+            if (
+              updateResult.count !== 1
+            ) {
               throw new ConflictException({
-                code: 'RESERVATION_CANCELLATION_CONFLICT',
+                code:
+                  'RESERVATION_CANCELLATION_CONFLICT',
+
                 message:
                   'Rezervarea a fost modificată între timp și nu mai poate fi anulată.',
               });
             }
 
-            return transaction.reservation.findUniqueOrThrow({
-              where: {
-                id: reservation.id,
-              },
-              include: {
-                guest: true,
-                rooms: {
-                  include: {
-                    roomType: true,
-                    room: true,
+            return transaction.reservation.findUniqueOrThrow(
+              {
+                where: {
+                  id: reservation.id,
+                },
+
+                include: {
+                  guest: true,
+
+                  rooms: {
+                    include: {
+                      roomType: true,
+                      room: true,
+                    },
+
+                    orderBy: {
+                      id: 'asc',
+                    },
+                  },
+
+                  payments: {
+                    orderBy: {
+                      createdAt: 'desc',
+                    },
                   },
                 },
-                payments: {
-                  orderBy: {
-                    createdAt: 'desc',
-                  },
-                },
               },
-            });
+            );
           },
           {
             isolationLevel:
-              Prisma.TransactionIsolationLevel.Serializable,
+              Prisma.TransactionIsolationLevel
+                .Serializable,
           },
         );
 
+      const roomNames =
+        updatedReservation.rooms.map(
+          (reservationRoom) =>
+            updatedReservation.locale ===
+            Locale.EN
+              ? reservationRoom.roomType
+                  .nameEn
+              : reservationRoom.roomType
+                  .nameRo,
+        );
+
+      const cancellationReason =
+        updatedReservation.cancellationReason ??
+        dto.reason;
+
+      const previouslyPaidAmount =
+        reservation.paidAmount.toNumber();
+
+      const refundedAmount =
+        refundPlan.refundAmount.toNumber();
+
+      const retainedAmount =
+        refundPlan.retainedAmount.toNumber();
+
+      const cancelledAt =
+        updatedReservation.cancelledAt ??
+        new Date();
+
+      /*
+       * Notificările sunt trimise numai după commit-ul tranzacției.
+       * ReservationNotificationService tratează intern erorile de
+       * email, astfel încât anularea efectuată cu succes să nu fie
+       * anulată logic dacă furnizorul de email nu răspunde.
+       */
+      await Promise.all([
+        this.reservationNotificationService.sendReservationCancelled(
+          {
+            reservationId:
+              updatedReservation.id,
+
+            guest: {
+              firstName:
+                updatedReservation.guest
+                  .firstName,
+
+              email:
+                updatedReservation.guest
+                  .email,
+            },
+
+            locale:
+              updatedReservation.locale,
+
+            checkInDate:
+              updatedReservation.checkInDate,
+
+            checkOutDate:
+              updatedReservation.checkOutDate,
+
+            roomNames,
+
+            cancellationReason,
+
+            previouslyPaidAmount,
+            refundedAmount,
+            retainedAmount,
+          },
+        ),
+
+        this.reservationNotificationService.sendReservationCancelledToAdmin(
+          {
+            reservationId:
+              updatedReservation.id,
+
+            guest: {
+              firstName:
+                updatedReservation.guest
+                  .firstName,
+
+              lastName:
+                updatedReservation.guest
+                  .lastName,
+
+              email:
+                updatedReservation.guest
+                  .email,
+
+              phone:
+                updatedReservation.guest
+                  .phone,
+            },
+
+            checkInDate:
+              updatedReservation.checkInDate,
+
+            checkOutDate:
+              updatedReservation.checkOutDate,
+
+            nights:
+              updatedReservation.nights,
+
+            adults:
+              updatedReservation.adults,
+
+            roomNames,
+
+            cancellationReason,
+
+            previouslyPaidAmount,
+            refundedAmount,
+            retainedAmount,
+
+            cancelledAt,
+          },
+        ),
+      ]);
+
       return {
-        id: updatedReservation.id,
-        status: updatedReservation.status,
+        id:
+          updatedReservation.id,
 
-        checkIn: this.formatDate(
-          updatedReservation.checkInDate,
-        ),
+        status:
+          updatedReservation.status,
 
-        checkOut: this.formatDate(
-          updatedReservation.checkOutDate,
-        ),
+        checkIn:
+          this.formatDate(
+            updatedReservation.checkInDate,
+          ),
+
+        checkOut:
+          this.formatDate(
+            updatedReservation.checkOutDate,
+          ),
 
         cancellationReason:
           updatedReservation.cancellationReason,
@@ -276,28 +461,35 @@ export class ReservationCancellationService {
         freeCancellation:
           refundPlan.refundable,
 
-        previouslyPaidAmount:
-          reservation.paidAmount.toNumber(),
+        previouslyPaidAmount,
 
-        refundedAmount:
-          refundPlan.refundAmount.toNumber(),
+        refundedAmount,
 
-        retainedAmount:
-          refundPlan.retainedAmount.toNumber(),
+        retainedAmount,
 
         remainingPaidAmount:
           updatedReservation.paidAmount.toNumber(),
 
-        refunds: processedRefunds.map((refund) => ({
-          paymentId: refund.paymentId,
-          stripeRefundId: refund.stripeRefundId,
-          amount: refund.amount.toNumber(),
-        })),
+        refunds:
+          processedRefunds.map(
+            (refund) => ({
+              paymentId:
+                refund.paymentId,
+
+              stripeRefundId:
+                refund.stripeRefundId,
+
+              amount:
+                refund.amount.toNumber(),
+            }),
+          ),
 
         roomsReleased: true,
 
         message:
-          refundPlan.refundAmount.greaterThan(0)
+          refundPlan.refundAmount.greaterThan(
+            0,
+          )
             ? 'Rezervarea a fost anulată, iar rambursarea a fost inițiată prin Stripe.'
             : 'Rezervarea a fost anulată. Conform politicii de anulare, nu se rambursează nicio sumă.',
       };
@@ -307,14 +499,21 @@ export class ReservationCancellationService {
        * situația trebuie reconciliată manual sau prin webhookurile
        * refund.created/refund.updated. Nu ascundem această situație.
        */
-      if (processedRefunds.length > 0) {
+      if (
+        processedRefunds.length > 0
+      ) {
         throw new ConflictException({
-          code: 'REFUND_CREATED_DATABASE_UPDATE_FAILED',
+          code:
+            'REFUND_CREATED_DATABASE_UPDATE_FAILED',
+
           message:
             'Stripe a creat rambursarea, dar actualizarea internă a rezervării a eșuat. Verifică rambursarea în Stripe Dashboard și reconciliază plata.',
-          stripeRefundIds: processedRefunds.map(
-            (refund) => refund.stripeRefundId,
-          ),
+
+          stripeRefundIds:
+            processedRefunds.map(
+              (refund) =>
+                refund.stripeRefundId,
+            ),
         });
       }
 
@@ -327,15 +526,25 @@ export class ReservationCancellationService {
     paidAmount: Prisma.Decimal;
     depositAmount: Prisma.Decimal;
   }): RefundPlan {
-    const today = this.getTodayInRomania();
-    const checkInDate = new Date(params.checkInDate);
+    const today =
+      this.getTodayInRomania();
+
+    const checkInDate =
+      new Date(params.checkInDate);
 
     const daysBeforeCheckIn =
-      this.getDifferenceInDays(today, checkInDate);
+      this.getDifferenceInDays(
+        today,
+        checkInDate,
+      );
 
-    if (daysBeforeCheckIn < 0) {
+    if (
+      daysBeforeCheckIn < 0
+    ) {
       throw new ConflictException({
-        code: 'CHECK_IN_ALREADY_PASSED',
+        code:
+          'CHECK_IN_ALREADY_PASSED',
+
         message:
           'Rezervarea nu poate fi anulată după începerea perioadei de cazare.',
       });
@@ -343,23 +552,40 @@ export class ReservationCancellationService {
 
     const qualifiesForFreeCancellation =
       daysBeforeCheckIn >=
-      ReservationCancellationService.FREE_CANCELLATION_DAYS;
+      ReservationCancellationService
+        .FREE_CANCELLATION_DAYS;
 
-    if (params.paidAmount.lessThanOrEqualTo(0)) {
+    if (
+      params.paidAmount.lessThanOrEqualTo(
+        0,
+      )
+    ) {
       return {
         daysBeforeCheckIn,
-        refundable: qualifiesForFreeCancellation,
-        refundAmount: new Prisma.Decimal(0),
-        retainedAmount: new Prisma.Decimal(0),
+
+        refundable:
+          qualifiesForFreeCancellation,
+
+        refundAmount:
+          new Prisma.Decimal(0),
+
+        retainedAmount:
+          new Prisma.Decimal(0),
       };
     }
 
-    if (qualifiesForFreeCancellation) {
+    if (
+      qualifiesForFreeCancellation
+    ) {
       return {
         daysBeforeCheckIn,
         refundable: true,
-        refundAmount: params.paidAmount,
-        retainedAmount: new Prisma.Decimal(0),
+
+        refundAmount:
+          params.paidAmount,
+
+        retainedAmount:
+          new Prisma.Decimal(0),
       };
     }
 
@@ -372,15 +598,19 @@ export class ReservationCancellationService {
      * Integral achitat:
      * paid = total -> refund = total - deposit
      */
-    const retainedAmount = Prisma.Decimal.min(
-      params.paidAmount,
-      params.depositAmount,
-    );
+    const retainedAmount =
+      Prisma.Decimal.min(
+        params.paidAmount,
+        params.depositAmount,
+      );
 
-    const refundAmount = Prisma.Decimal.max(
-      params.paidAmount.minus(retainedAmount),
-      new Prisma.Decimal(0),
-    );
+    const refundAmount =
+      Prisma.Decimal.max(
+        params.paidAmount.minus(
+          retainedAmount,
+        ),
+        new Prisma.Decimal(0),
+      );
 
     return {
       daysBeforeCheckIn,
@@ -392,13 +622,18 @@ export class ReservationCancellationService {
 
   private async createStripeRefunds(
     reservationId: string,
+
     payments: Array<{
       id: string;
       amount: Prisma.Decimal;
       refundedAmount: Prisma.Decimal;
-      stripePaymentIntentId: string | null;
+      stripePaymentIntentId:
+        | string
+        | null;
     }>,
-    requestedRefundAmount: Prisma.Decimal,
+
+    requestedRefundAmount:
+      Prisma.Decimal,
   ): Promise<
     Array<{
       paymentId: string;
@@ -412,28 +647,44 @@ export class ReservationCancellationService {
       amount: Prisma.Decimal;
     }> = [];
 
-    let remainingAmount = new Prisma.Decimal(
-      requestedRefundAmount,
-    );
+    let remainingAmount =
+      new Prisma.Decimal(
+        requestedRefundAmount,
+      );
 
-    for (const payment of payments) {
-      if (remainingAmount.lessThanOrEqualTo(0)) {
+    for (
+      const payment of payments
+    ) {
+      if (
+        remainingAmount.lessThanOrEqualTo(
+          0,
+        )
+      ) {
         break;
       }
 
-      if (!payment.stripePaymentIntentId) {
+      if (
+        !payment.stripePaymentIntentId
+      ) {
         continue;
       }
 
       const refundableOnPayment =
-        payment.amount.minus(payment.refundedAmount);
+        payment.amount.minus(
+          payment.refundedAmount,
+        );
 
-      const amountForThisPayment = Prisma.Decimal.min(
-        refundableOnPayment,
-        remainingAmount,
-      );
+      const amountForThisPayment =
+        Prisma.Decimal.min(
+          refundableOnPayment,
+          remainingAmount,
+        );
 
-      if (amountForThisPayment.lessThanOrEqualTo(0)) {
+      if (
+        amountForThisPayment.lessThanOrEqualTo(
+          0,
+        )
+      ) {
         continue;
       }
 
@@ -443,15 +694,19 @@ export class ReservationCancellationService {
             payment_intent:
               payment.stripePaymentIntentId,
 
-            amount: this.toStripeAmount(
-              amountForThisPayment,
-            ),
+            amount:
+              this.toStripeAmount(
+                amountForThisPayment,
+              ),
 
-            reason: 'requested_by_customer',
+            reason:
+              'requested_by_customer',
 
             metadata: {
               reservationId,
-              paymentId: payment.id,
+              paymentId:
+                payment.id,
+
               refundType:
                 amountForThisPayment.equals(
                   refundableOnPayment,
@@ -462,27 +717,41 @@ export class ReservationCancellationService {
           },
           {
             idempotencyKey:
-              `reservation-cancel-${reservationId}-${payment.id}-${amountForThisPayment.toFixed(2)}`,
+              `reservation-cancel-${reservationId}-${payment.id}-${amountForThisPayment.toFixed(
+                2,
+              )}`,
           },
         );
 
       results.push({
-        paymentId: payment.id,
-        stripeRefundId: stripeRefund.id,
-        amount: amountForThisPayment,
+        paymentId:
+          payment.id,
+
+        stripeRefundId:
+          stripeRefund.id,
+
+        amount:
+          amountForThisPayment,
       });
 
-      remainingAmount = remainingAmount.minus(
-        amountForThisPayment,
-      );
+      remainingAmount =
+        remainingAmount.minus(
+          amountForThisPayment,
+        );
     }
 
-    if (remainingAmount.greaterThan(0)) {
+    if (
+      remainingAmount.greaterThan(0)
+    ) {
       throw new ConflictException({
-        code: 'REFUND_ALLOCATION_FAILED',
+        code:
+          'REFUND_ALLOCATION_FAILED',
+
         message:
           'Suma de rambursat nu a putut fi distribuită integral pe plățile Stripe.',
-        remainingAmount: remainingAmount.toNumber(),
+
+        remainingAmount:
+          remainingAmount.toNumber(),
       });
     }
 
@@ -498,32 +767,44 @@ export class ReservationCancellationService {
     const entries = [
       existingNotes?.trim(),
       newNotes?.trim(),
+
       `Rezervare anulată de administratorul ${adminId}.`,
+
       `Rambursat: ${refundPlan.refundAmount.toFixed(
         2,
       )} RON. Reținut: ${refundPlan.retainedAmount.toFixed(
         2,
       )} RON.`,
     ].filter(
-      (entry): entry is string =>
-        Boolean(entry && entry.length > 0),
+      (
+        entry,
+      ): entry is string =>
+        Boolean(
+          entry &&
+            entry.length > 0,
+        ),
     );
 
     return entries.join('\n');
   }
 
   private getTodayInRomania(): Date {
-    const dateString = new Intl.DateTimeFormat(
-      'en-CA',
-      {
-        timeZone: 'Europe/Bucharest',
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-      },
-    ).format(new Date());
+    const dateString =
+      new Intl.DateTimeFormat(
+        'en-CA',
+        {
+          timeZone:
+            'Europe/Bucharest',
 
-    return new Date(`${dateString}T00:00:00.000Z`);
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+        },
+      ).format(new Date());
+
+    return new Date(
+      `${dateString}T00:00:00.000Z`,
+    );
   }
 
   private getDifferenceInDays(
@@ -534,7 +815,8 @@ export class ReservationCancellationService {
       24 * 60 * 60 * 1000;
 
     return Math.floor(
-      (endDate.getTime() - startDate.getTime()) /
+      (endDate.getTime() -
+        startDate.getTime()) /
         millisecondsPerDay,
     );
   }
@@ -548,7 +830,11 @@ export class ReservationCancellationService {
       .toNumber();
   }
 
-  private formatDate(date: Date): string {
-    return date.toISOString().slice(0, 10);
+  private formatDate(
+    date: Date,
+  ): string {
+    return date
+      .toISOString()
+      .slice(0, 10);
   }
 }

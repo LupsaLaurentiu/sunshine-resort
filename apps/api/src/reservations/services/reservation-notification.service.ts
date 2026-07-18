@@ -1,4 +1,8 @@
-import { Injectable, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+} from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { Locale } from '@prisma/client';
 import { EmailService } from '../../email/email.service';
 
@@ -101,6 +105,7 @@ export type ReservationCancelledNotificationParams = {
   checkInDate: Date;
   checkOutDate: Date;
 
+  
   roomNames: string[];
 
   cancellationReason: string;
@@ -108,6 +113,56 @@ export type ReservationCancelledNotificationParams = {
   previouslyPaidAmount: number;
   refundedAmount: number;
   retainedAmount: number;
+};
+
+export type ReservationChangeRequestedAdminNotificationParams = {
+  reservationId: string;
+  reservationChangeId: string;
+
+  guest: {
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone: string;
+  };
+
+  currentCheckInDate: Date;
+  currentCheckOutDate: Date;
+
+  requestedCheckInDate: Date;
+  requestedCheckOutDate: Date;
+
+  roomNames: string[];
+
+  guestReason?: string | null;
+  approvalExpiresAt?: Date | null;
+};
+
+export type ReservationCancelledAdminNotificationParams = {
+  reservationId: string;
+
+  guest: {
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone: string;
+  };
+
+  checkInDate: Date;
+  checkOutDate: Date;
+
+  nights: number;
+  adults: number;
+
+  roomNames: string[];
+
+  cancellationReason: string;
+
+  previouslyPaidAmount: number;
+  refundedAmount: number;
+  retainedAmount: number;
+
+  cancelledAt: Date;
 };
 
 export type SevenDayReminderNotificationParams = {
@@ -164,6 +219,60 @@ export type OneDayReminderNotificationParams = {
   mapsUrl?: string;
 };
 
+export type ReservationCreatedAdminNotificationParams = {
+  reservationId: string;
+
+  guest: {
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone: string;
+    country?: string | null;
+  };
+
+  checkInDate: Date;
+  checkOutDate: Date;
+
+  nights: number;
+  adults: number;
+
+  roomNames: string[];
+
+  totalPrice: number;
+  depositAmount: number;
+
+  guestNotes?: string | null;
+  approvalExpiresAt?: Date | null;
+};
+
+export type PaymentConfirmedAdminNotificationParams = {
+  reservationId: string;
+
+  guest: {
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone: string;
+  };
+
+  checkInDate: Date;
+  checkOutDate: Date;
+
+  nights: number;
+  adults: number;
+
+  roomNames: string[];
+
+  paymentType: string;
+  amountPaid: number;
+  totalPrice: number;
+  remainingAmount: number;
+
+  paymentId: string;
+  stripePaymentIntentId?: string | null;
+  paidAt: Date;
+};
+
 export type PostStayNotificationParams = {
   reservationId: string;
 
@@ -190,9 +299,28 @@ export class ReservationNotificationService {
     ReservationNotificationService.name,
   );
 
+  private readonly adminNotificationEmail: string;
+
   constructor(
     private readonly emailService: EmailService,
-  ) {}
+    private readonly configService: ConfigService,
+  ) {
+    const adminNotificationEmail =
+      this.configService.get<string>(
+        'ADMIN_NOTIFICATION_EMAIL',
+      );
+
+    if (!adminNotificationEmail?.trim()) {
+      throw new Error(
+        'ADMIN_NOTIFICATION_EMAIL is not configured.',
+      );
+    }
+
+    this.adminNotificationEmail =
+      adminNotificationEmail
+        .trim()
+        .toLowerCase();
+  }
 
   async sendReservationCreated(
     params: ReservationCreatedNotificationParams,
@@ -243,7 +371,73 @@ export class ReservationNotificationService {
       });
     }
   }
+  async sendReservationCreatedToAdmin(
+    params: ReservationCreatedAdminNotificationParams,
+  ): Promise<void> {
+    try {
+      await this.emailService.sendAdminReservationCreatedEmail({
+        to: this.adminNotificationEmail,
 
+        reservationId:
+          params.reservationId,
+
+        guestFirstName:
+          params.guest.firstName,
+
+        guestLastName:
+          params.guest.lastName,
+
+        guestEmail:
+          params.guest.email,
+
+        guestPhone:
+          params.guest.phone,
+
+        guestCountry:
+          params.guest.country ?? null,
+
+        checkIn:
+          params.checkInDate,
+
+        checkOut:
+          params.checkOutDate,
+
+        nights:
+          params.nights,
+
+        adults:
+          params.adults,
+
+        roomNames:
+          params.roomNames,
+
+        totalPrice:
+          params.totalPrice,
+
+        depositAmount:
+          params.depositAmount,
+
+        guestNotes:
+          params.guestNotes ?? null,
+
+        approvalDeadline:
+          params.approvalExpiresAt ?? null,
+      });
+    } catch (error: unknown) {
+      this.logNotificationFailure({
+        notificationType:
+          'admin-reservation-created',
+
+        reservationId:
+          params.reservationId,
+
+        recipient:
+          this.adminNotificationEmail,
+
+        error,
+      });
+    }
+  }
   async sendReservationApproved(
     params: ReservationApprovedNotificationParams,
   ): Promise<void> {
@@ -356,6 +550,80 @@ export class ReservationNotificationService {
     }
   }
 
+  async sendPaymentConfirmedToAdmin(
+    params: PaymentConfirmedAdminNotificationParams,
+  ): Promise<void> {
+    try {
+      await this.emailService.sendAdminPaymentConfirmedEmail({
+        to: this.adminNotificationEmail,
+
+        reservationId:
+          params.reservationId,
+
+        guestFirstName:
+          params.guest.firstName,
+
+        guestLastName:
+          params.guest.lastName,
+
+        guestEmail:
+          params.guest.email,
+
+        guestPhone:
+          params.guest.phone,
+
+        checkIn:
+          params.checkInDate,
+
+        checkOut:
+          params.checkOutDate,
+
+        nights:
+          params.nights,
+
+        adults:
+          params.adults,
+
+        roomNames:
+          params.roomNames,
+
+        paymentType:
+          params.paymentType,
+
+        amountPaid:
+          params.amountPaid,
+
+        totalPrice:
+          params.totalPrice,
+
+        remainingAmount:
+          params.remainingAmount,
+
+        paymentId:
+          params.paymentId,
+
+        stripePaymentIntentId:
+          params.stripePaymentIntentId ?? null,
+
+        paidAt:
+          params.paidAt,
+      });
+    } catch (error: unknown) {
+      this.logNotificationFailure({
+        notificationType:
+          'admin-payment-confirmed',
+
+        reservationId:
+          params.reservationId,
+
+        recipient:
+          this.adminNotificationEmail,
+
+        error,
+      });
+    }
+  }
+
   async sendReservationRejected(
     params: ReservationRejectedNotificationParams,
   ): Promise<void> {
@@ -447,6 +715,143 @@ export class ReservationNotificationService {
 
         recipient:
           params.guest.email,
+
+        error,
+      });
+    }
+  }
+
+  /**
+   * Notifică administratorul numai când clientul creează
+   * o cerere nouă de modificare.
+   *
+   * Administratorul nu primește notificări după propria
+   * decizie de aprobare sau respingere.
+   */
+
+  async sendReservationCancelledToAdmin(
+    params: ReservationCancelledAdminNotificationParams,
+  ): Promise<void> {
+    try {
+      await this.emailService.sendAdminReservationCancelledEmail({
+        to: this.adminNotificationEmail,
+
+        reservationId:
+          params.reservationId,
+
+        guestFirstName:
+          params.guest.firstName,
+
+        guestLastName:
+          params.guest.lastName,
+
+        guestEmail:
+          params.guest.email,
+
+        guestPhone:
+          params.guest.phone,
+
+        checkIn:
+          params.checkInDate,
+
+        checkOut:
+          params.checkOutDate,
+
+        nights:
+          params.nights,
+
+        adults:
+          params.adults,
+
+        roomNames:
+          params.roomNames,
+
+        cancellationReason:
+          params.cancellationReason,
+
+        previouslyPaidAmount:
+          params.previouslyPaidAmount,
+
+        refundedAmount:
+          params.refundedAmount,
+
+        retainedAmount:
+          params.retainedAmount,
+
+        cancelledAt:
+          params.cancelledAt,
+      });
+    } catch (error: unknown) {
+      this.logNotificationFailure({
+        notificationType:
+          'admin-reservation-cancelled',
+
+        reservationId:
+          params.reservationId,
+
+        recipient:
+          this.adminNotificationEmail,
+
+        error,
+      });
+    }
+  }
+  async sendReservationChangeRequestedToAdmin(
+    params: ReservationChangeRequestedAdminNotificationParams,
+  ): Promise<void> {
+    try {
+      await this.emailService.sendAdminReservationChangeRequestedEmail({
+        to: this.adminNotificationEmail,
+
+        reservationId:
+          params.reservationId,
+
+        reservationChangeId:
+          params.reservationChangeId,
+
+        guestFirstName:
+          params.guest.firstName,
+
+        guestLastName:
+          params.guest.lastName,
+
+        guestEmail:
+          params.guest.email,
+
+        guestPhone:
+          params.guest.phone,
+
+        currentCheckIn:
+          params.currentCheckInDate,
+
+        currentCheckOut:
+          params.currentCheckOutDate,
+
+        requestedCheckIn:
+          params.requestedCheckInDate,
+
+        requestedCheckOut:
+          params.requestedCheckOutDate,
+
+        roomNames:
+          params.roomNames,
+
+        guestReason:
+          params.guestReason ?? null,
+
+        approvalDeadline:
+          params.approvalExpiresAt ?? null,
+      });
+    } catch (error: unknown) {
+      this.logNotificationFailure({
+        notificationType:
+          'admin-reservation-change-requested',
+
+        reservationId:
+          params.reservationId,
+
+        recipient:
+          this.adminNotificationEmail,
 
         error,
       });

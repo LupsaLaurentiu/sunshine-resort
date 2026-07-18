@@ -31,7 +31,9 @@ type PaymentConfirmationNotification = {
 
   guest: {
     firstName: string;
+    lastName: string;
     email: string;
+    phone: string;
   };
 
   locale: Locale;
@@ -44,8 +46,15 @@ type PaymentConfirmationNotification = {
 
   roomNames: string[];
 
+  paymentType: PaymentType;
+  paymentId: string;
+
   amountPaid: number;
   totalPrice: number;
+  remainingAmount: number;
+
+  stripePaymentIntentId: string | null;
+  paidAt: Date;
 };
 
 @Injectable()
@@ -805,21 +814,18 @@ export class PaymentsService {
             const isReservationChangePayment =
               payment.type ===
                 PaymentType.REMAINING_BALANCE &&
-              payment.reservationChangeId !==
-                null;
+              payment.reservationChangeId !== null;
 
             /*
-             * Webhook idempotent:
-             * evenimentele Stripe duplicate nu retrimit emailul
-             * și nu reaplică aceeași actualizare.
-             */
+            * Webhook idempotent:
+            * nu repetăm actualizarea și notificările
+            * dacă plata a fost deja procesată.
+            */
             if (
               payment.status ===
               PaymentStatus.PAID
             ) {
-              if (
-                isReservationChangePayment
-              ) {
+              if (isReservationChangePayment) {
                 const change =
                   await transaction.reservationChange.findUnique({
                     where: {
@@ -963,6 +969,11 @@ export class PaymentsService {
                 },
               });
 
+              /*
+              * Pentru moment nu trimitem emailul standard
+              * de confirmare a rezervării pentru plata
+              * unei modificări.
+              */
               return null;
             }
 
@@ -987,10 +998,6 @@ export class PaymentsService {
                 paidAmount:
                   payment.amount,
 
-                /*
-                 * Linkul public de plată devine inutilizabil
-                 * imediat după confirmarea plății.
-                 */
                 paymentAccessTokenHash:
                   null,
 
@@ -1010,6 +1017,22 @@ export class PaymentsService {
                         .nameRo,
               );
 
+            const amountPaid =
+              payment.amount.toNumber();
+
+            const totalPrice =
+              reservation.totalPrice.toNumber();
+
+            const remainingAmount =
+              Math.max(
+                0,
+                new Prisma.Decimal(
+                  reservation.totalPrice,
+                )
+                  .minus(payment.amount)
+                  .toNumber(),
+              );
+
             return {
               reservationId:
                 reservation.id,
@@ -1018,8 +1041,14 @@ export class PaymentsService {
                 firstName:
                   reservation.guest.firstName,
 
+                lastName:
+                  reservation.guest.lastName,
+
                 email:
                   reservation.guest.email,
+
+                phone:
+                  reservation.guest.phone,
               },
 
               locale:
@@ -1039,11 +1068,23 @@ export class PaymentsService {
 
               roomNames,
 
-              amountPaid:
-                payment.amount.toNumber(),
+              paymentType:
+                payment.type,
 
-              totalPrice:
-                reservation.totalPrice.toNumber(),
+              paymentId:
+                payment.id,
+
+              amountPaid,
+
+              totalPrice,
+
+              remainingAmount,
+
+              stripePaymentIntentId:
+                paymentIntentId ?? null,
+
+              paidAt:
+                paymentConfirmedAt,
             };
           },
           {
@@ -1053,15 +1094,108 @@ export class PaymentsService {
         );
 
       /*
-       * Emailul se trimite după commit.
-       * ReservationNotificationService gestionează intern
-       * eventualele erori Resend, astfel încât webhook-ul
-       * Stripe să poată răspunde cu 200.
-       */
+      * Notificările se trimit doar după commit.
+      * Fiecare metodă tratează intern erorile Resend,
+      * astfel încât webhook-ul Stripe să poată răspunde cu 200.
+      */
       if (notification) {
-        await this.reservationNotificationService.sendPaymentConfirmed(
-          notification,
-        );
+        await Promise.all([
+          this.reservationNotificationService.sendPaymentConfirmed(
+            {
+              reservationId:
+                notification.reservationId,
+
+              guest: {
+                firstName:
+                  notification.guest.firstName,
+
+                email:
+                  notification.guest.email,
+              },
+
+              locale:
+                notification.locale,
+
+              checkInDate:
+                notification.checkInDate,
+
+              checkOutDate:
+                notification.checkOutDate,
+
+              nights:
+                notification.nights,
+
+              adults:
+                notification.adults,
+
+              roomNames:
+                notification.roomNames,
+
+              amountPaid:
+                notification.amountPaid,
+
+              totalPrice:
+                notification.totalPrice,
+            },
+          ),
+
+          this.reservationNotificationService.sendPaymentConfirmedToAdmin(
+            {
+              reservationId:
+                notification.reservationId,
+
+              guest: {
+                firstName:
+                  notification.guest.firstName,
+
+                lastName:
+                  notification.guest.lastName,
+
+                email:
+                  notification.guest.email,
+
+                phone:
+                  notification.guest.phone,
+              },
+
+              checkInDate:
+                notification.checkInDate,
+
+              checkOutDate:
+                notification.checkOutDate,
+
+              nights:
+                notification.nights,
+
+              adults:
+                notification.adults,
+
+              roomNames:
+                notification.roomNames,
+
+              paymentType:
+                notification.paymentType,
+
+              amountPaid:
+                notification.amountPaid,
+
+              totalPrice:
+                notification.totalPrice,
+
+              remainingAmount:
+                notification.remainingAmount,
+
+              paymentId:
+                notification.paymentId,
+
+              stripePaymentIntentId:
+                notification.stripePaymentIntentId,
+
+              paidAt:
+                notification.paidAt,
+            },
+          ),
+        ]);
       }
     } catch (error: unknown) {
       if (
