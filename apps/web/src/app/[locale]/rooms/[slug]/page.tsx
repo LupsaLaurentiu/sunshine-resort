@@ -1,9 +1,9 @@
-import { notFound } from "next/navigation";
-import Link from "next/link";
-import { rooms } from "@/data/rooms";
-import { FadeIn } from "@/components/animations/FadeIn";
 import Image from "next/image";
+import Link from "next/link";
+import { notFound } from "next/navigation";
 
+import { FadeIn } from "@/components/animations/FadeIn";
+import { getPublicRoomContent } from "@/data/rooms";
 
 type RoomDetailsPageProps = {
   params: Promise<{
@@ -16,7 +16,7 @@ export default async function RoomDetailsPage({
   params,
 }: RoomDetailsPageProps) {
   const { slug, locale } = await params;
-  const room = rooms.find((item) => item.slug === slug);
+  const room = getPublicRoomContent(slug);
 
   if (!room) {
     notFound();
@@ -27,18 +27,21 @@ export default async function RoomDetailsPage({
       <section className="relative flex h-screen items-center justify-center overflow-hidden px-8 text-center text-white">
         <div
           className="absolute inset-0 bg-cover bg-center"
-          style={{ backgroundImage: `url('${room.image}')` }}
+          style={{
+            backgroundImage: `url('${room.image}')`,
+          }}
         />
+
         <div className="absolute inset-0 bg-black/45" />
         <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/75" />
 
         <Image
-            src="/logo-sunshine.png"
-            alt="Sunshine Resort"
-            width={150}
-            height={90}
-            priority
-            className="absolute left-1/2 top-8 z-20 h-auto w-[120px] -translate-x-1/2 md:w-[145px]"
+          src="/logo-sunshine.png"
+          alt="Sunshine Resort"
+          width={150}
+          height={90}
+          priority
+          className="absolute left-1/2 top-8 z-20 h-auto w-[120px] -translate-x-1/2 md:w-[145px]"
         />
 
         <div className="relative z-10 max-w-5xl">
@@ -60,11 +63,13 @@ export default async function RoomDetailsPage({
             </p>
           </FadeIn>
         </div>
+
         <div className="absolute bottom-10 left-1/2 z-10 -translate-x-1/2 text-center">
-            <p className="mb-2 text-[10px] uppercase tracking-[0.4em] text-white/70">
-                Scroll
-            </p>
-            <div className="mx-auto h-8 w-px bg-white/50" />
+          <p className="mb-2 text-[10px] uppercase tracking-[0.4em] text-white/70">
+            Scroll
+          </p>
+
+          <div className="mx-auto h-8 w-px bg-white/50" />
         </div>
       </section>
 
@@ -109,7 +114,9 @@ export default async function RoomDetailsPage({
             <FadeIn key={image} delay={index * 0.12}>
               <div
                 className="h-[520px] bg-cover bg-center"
-                style={{ backgroundImage: `url('${image}')` }}
+                style={{
+                  backgroundImage: `url('${image}')`,
+                }}
               />
             </FadeIn>
           ))}
@@ -123,6 +130,7 @@ export default async function RoomDetailsPage({
               <p className="mb-6 text-xs uppercase tracking-[0.5em] text-gold">
                 Included
               </p>
+
               <h2 className="heading text-5xl font-light md:text-7xl">
                 Amenities
               </h2>

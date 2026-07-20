@@ -1,7 +1,7 @@
-import { ValidationPipe } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { NestFactory } from '@nestjs/core';
-import { AppModule } from './app.module';
+import { ValidationPipe } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import { NestFactory } from "@nestjs/core";
+import { AppModule } from "./app.module";
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
@@ -10,16 +10,30 @@ async function bootstrap() {
 
   const configService = app.get(ConfigService);
 
-  const port = configService.get<number>('PORT', 3001);
-  const frontendUrl = configService.get<string>(
-    'FRONTEND_URL',
-    'http://localhost:3000',
+  const port = configService.get<number>("PORT", 3001);
+
+  const configuredFrontendUrl = configService.get<string>(
+    "FRONTEND_URL",
+    "http://localhost:3000",
   );
 
-  app.setGlobalPrefix('api');
+  const allowedOrigins = [
+    configuredFrontendUrl,
+    "http://localhost:3000",
+    "http://25.31.85.11:3000",
+  ];
+
+  app.setGlobalPrefix("api");
 
   app.enableCors({
-    origin: frontendUrl,
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+        return;
+      }
+
+      callback(new Error(`Origin not allowed by CORS: ${origin}`));
+    },
     credentials: true,
   });
 
@@ -36,11 +50,11 @@ async function bootstrap() {
 
   app.enableShutdownHooks();
 
-  await app.listen(port);
+  await app.listen(port, "0.0.0.0");
 
   console.log(
     `Sunshine Resort API running on http://localhost:${port}/api`,
   );
 }
 
-bootstrap();
+void bootstrap();
