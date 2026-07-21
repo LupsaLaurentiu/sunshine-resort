@@ -7,14 +7,13 @@ import type { AdminSection } from "@/types/admin";
 import { AdminCalendar } from "./calendar/AdminCalendar";
 import { AdminDashboard } from "./dashboard/AdminDashboard";
 import { ReservationsSection } from "./reservations/ReservationsSection";
+import { RoomsSection } from "./rooms/RoomsSection";
 import { AdminEmptySection } from "./shared/AdminEmptySection";
 
 import { AdminHeader } from "@/components/layout/admin/AdminHeader";
 import { AdminNavigation } from "@/components/layout/admin/AdminNavigation";
 
-function renderSection(
-  section: AdminSection,
-) {
+function renderSection(section: AdminSection) {
   switch (section) {
     case "dashboard":
       return <AdminDashboard />;
@@ -26,13 +25,7 @@ function renderSection(
       return <AdminCalendar />;
 
     case "rooms":
-      return (
-        <AdminEmptySection
-          eyebrow="Inventory"
-          title="Camere"
-          description="Administrarea apartamentelor fizice, codurilor și dispozitivelor TV."
-        />
-      );
+      return <RoomsSection />;
 
     case "rates":
       return (
@@ -57,7 +50,7 @@ function renderSection(
         <AdminEmptySection
           eyebrow="Availability"
           title="Blocări"
-          description="Blocarea camerelor pentru mentenanță, utilizare internă sau indisponibilitate."
+          description="Blocarea apartamentelor pentru mentenanță, utilizare internă sau alte perioade de indisponibilitate."
         />
       );
 

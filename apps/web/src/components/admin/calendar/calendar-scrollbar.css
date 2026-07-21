@@ -1,0 +1,22 @@
+.admin-calendar-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(201,165,92,.8) rgba(255,255,255,.05);
+}
+
+.admin-calendar-scroll::-webkit-scrollbar {
+  height: 12px;
+}
+
+.admin-calendar-scroll::-webkit-scrollbar-track {
+  background: rgba(255,255,255,.04);
+}
+
+.admin-calendar-scroll::-webkit-scrollbar-thumb {
+  background: rgba(201,165,92,.8);
+  border-radius: 999px;
+  border: 3px solid #0b0b0b;
+}
+
+.admin-calendar-scroll::-webkit-scrollbar-thumb:hover {
+  background: #c9a55c;
+}

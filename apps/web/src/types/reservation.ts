@@ -10,6 +10,11 @@ export type ReservationStatus =
   | "CHECKED_IN"
   | "CHECKED_OUT";
 
+export type ReservationSource =
+  | "DIRECT_WEBSITE"
+  | "MANUAL_ADMIN"
+  | "BOOKING_COM";
+
 export type CreateReservationGuest = {
   firstName: string;
   lastName: string;

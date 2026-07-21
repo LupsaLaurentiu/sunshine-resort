@@ -8,6 +8,7 @@ import type {
 } from "@/types/admin-calendar";
 
 import { CalendarRoomRow } from "./CalendarRoomRow";
+import "./calendar-scrollbar.css";
 
 type CalendarGridProps = {
   rooms: CalendarRoom[];
@@ -29,7 +30,7 @@ export function CalendarGrid({
 
   return (
     <section className="overflow-hidden border border-white/10 bg-[#0b0b0b]">
-      <div className="overflow-x-auto">
+      <div className="admin-calendar-scroll overflow-x-auto">
         <div
           className="min-w-max"
           style={{
