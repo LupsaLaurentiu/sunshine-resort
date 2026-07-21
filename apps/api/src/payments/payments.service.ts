@@ -60,8 +60,7 @@ type PaymentConfirmationNotification = {
 @Injectable()
 export class PaymentsService {
   private readonly stripe: Stripe;
-  private readonly successUrl: string;
-  private readonly cancelUrl: string;
+  private readonly frontendBaseUrl: string;
   private readonly webhookSecret: string;
 
   constructor(
@@ -78,14 +77,9 @@ export class PaymentsService {
         'STRIPE_SECRET_KEY',
       );
 
-    const successUrl =
+    const frontendBaseUrl =
       this.configService.get<string>(
-        'STRIPE_SUCCESS_URL',
-      );
-
-    const cancelUrl =
-      this.configService.get<string>(
-        'STRIPE_CANCEL_URL',
+        'FRONTEND_BASE_URL',
       );
 
     const webhookSecret =
@@ -99,15 +93,9 @@ export class PaymentsService {
       );
     }
 
-    if (!successUrl) {
+    if (!frontendBaseUrl?.trim()) {
       throw new Error(
-        'STRIPE_SUCCESS_URL is not configured.',
-      );
-    }
-
-    if (!cancelUrl) {
-      throw new Error(
-        'STRIPE_CANCEL_URL is not configured.',
+        'FRONTEND_BASE_URL is not configured.',
       );
     }
 
@@ -118,8 +106,9 @@ export class PaymentsService {
     }
 
     this.stripe = new Stripe(stripeSecretKey);
-    this.successUrl = successUrl;
-    this.cancelUrl = cancelUrl;
+    this.frontendBaseUrl = frontendBaseUrl
+      .trim()
+      .replace(/\/+$/, '');
     this.webhookSecret = webhookSecret;
   }
 
@@ -283,6 +272,11 @@ export class PaymentsService {
       });
 
     try {
+      const returnUrls =
+        this.buildStripeReturnUrls(
+          reservation.locale,
+        );
+
       const checkoutSession =
         await this.stripe.checkout.sessions.create({
           mode: 'payment',
@@ -339,10 +333,12 @@ export class PaymentsService {
           ],
 
           success_url:
-            `${this.successUrl}?session_id={CHECKOUT_SESSION_ID}`,
+            `${returnUrls.successUrl}?session_id={CHECKOUT_SESSION_ID}`,
 
           cancel_url:
-            `${this.cancelUrl}?reservationId=${reservation.id}`,
+            `${returnUrls.cancelUrl}?reservationId=${encodeURIComponent(
+              reservation.id,
+            )}`,
 
           expires_at: Math.floor(
             reservation.paymentExpiresAt.getTime() /
@@ -531,6 +527,11 @@ export class PaymentsService {
       });
 
     try {
+      const returnUrls =
+        this.buildStripeReturnUrls(
+          change.reservation.locale,
+        );
+
       const checkoutSession =
         await this.stripe.checkout.sessions.create({
           mode: 'payment',
@@ -598,10 +599,12 @@ export class PaymentsService {
           ],
 
           success_url:
-            `${this.successUrl}?session_id={CHECKOUT_SESSION_ID}`,
+            `${returnUrls.successUrl}?session_id={CHECKOUT_SESSION_ID}`,
 
           cancel_url:
-            `${this.cancelUrl}?reservationChangeId=${change.id}`,
+            `${returnUrls.cancelUrl}?reservationChangeId=${encodeURIComponent(
+              change.id,
+            )}`,
 
           expires_at: Math.floor(
             change.paymentExpiresAt.getTime() /
@@ -1409,6 +1412,24 @@ export class PaymentsService {
       expiresAt:
         params.expiresAt?.toISOString() ??
         null,
+    };
+  }
+
+  private buildStripeReturnUrls(
+    locale: Locale,
+  ): {
+    successUrl: string;
+    cancelUrl: string;
+  } {
+    const localePath =
+      locale === Locale.EN ? 'en' : 'ro';
+
+    return {
+      successUrl:
+        `${this.frontendBaseUrl}/${localePath}/booking/payment-success`,
+
+      cancelUrl:
+        `${this.frontendBaseUrl}/${localePath}/booking/payment-cancelled`,
     };
   }
 

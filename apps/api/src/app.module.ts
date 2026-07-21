@@ -12,6 +12,7 @@ import { RatePeriodsModule } from './rate-periods/rate-periods.module';
 import { ReservationsModule } from './reservations/reservations.module';
 import { RoomsModule } from './rooms/rooms.module';
 import { RoomTypesModule } from './room-types/room-types.module';
+import { CalendarModule } from './calendar/calendar.module';
 
 @Module({
   imports: [
@@ -22,10 +23,8 @@ import { RoomTypesModule } from './room-types/room-types.module';
     ScheduleModule.forRoot(),
 
     PrismaModule,
-    EmailModule,
-
-    AdminsModule,
     AuthModule,
+    AdminsModule,
     RoomTypesModule,
     RoomsModule,
     RatePeriodsModule,
@@ -33,6 +32,8 @@ import { RoomTypesModule } from './room-types/room-types.module';
     AvailabilityModule,
     ReservationsModule,
     PaymentsModule,
+    EmailModule,
+    CalendarModule,
   ],
 })
 export class AppModule {}

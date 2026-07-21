@@ -4,6 +4,7 @@ import { useState } from "react";
 
 import type { AdminSection } from "@/types/admin";
 
+import { AdminCalendar } from "./calendar/AdminCalendar";
 import { AdminDashboard } from "./dashboard/AdminDashboard";
 import { ReservationsSection } from "./reservations/ReservationsSection";
 import { AdminEmptySection } from "./shared/AdminEmptySection";
@@ -11,7 +12,9 @@ import { AdminEmptySection } from "./shared/AdminEmptySection";
 import { AdminHeader } from "@/components/layout/admin/AdminHeader";
 import { AdminNavigation } from "@/components/layout/admin/AdminNavigation";
 
-function renderSection(section: AdminSection) {
+function renderSection(
+  section: AdminSection,
+) {
   switch (section) {
     case "dashboard":
       return <AdminDashboard />;
@@ -20,13 +23,7 @@ function renderSection(section: AdminSection) {
       return <ReservationsSection />;
 
     case "calendar":
-      return (
-        <AdminEmptySection
-          eyebrow="PMS Calendar"
-          title="Calendar"
-          description="Calendarul central cu ocuparea celor opt apartamente și perioadele blocate."
-        />
-      );
+      return <AdminCalendar />;
 
     case "rooms":
       return (
@@ -91,7 +88,7 @@ export function AdminPanel() {
         onSectionChange={setActiveSection}
       />
 
-      <div className="mx-auto max-w-[1600px] px-6 py-12 md:px-10 md:py-16">
+      <div className="mx-auto max-w-[1800px] px-6 py-12 md:px-10 md:py-16">
         {renderSection(activeSection)}
       </div>
     </main>
