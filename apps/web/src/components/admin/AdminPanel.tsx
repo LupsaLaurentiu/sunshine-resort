@@ -6,6 +6,7 @@ import type { AdminSection } from "@/types/admin";
 
 import { AdminCalendar } from "./calendar/AdminCalendar";
 import { AdminDashboard } from "./dashboard/AdminDashboard";
+import { AdminRates } from "./rates/AdminRates";
 import { ReservationsSection } from "./reservations/ReservationsSection";
 import { RoomsSection } from "./rooms/RoomsSection";
 import { AdminEmptySection } from "./shared/AdminEmptySection";
@@ -13,7 +14,9 @@ import { AdminEmptySection } from "./shared/AdminEmptySection";
 import { AdminHeader } from "@/components/layout/admin/AdminHeader";
 import { AdminNavigation } from "@/components/layout/admin/AdminNavigation";
 
-function renderSection(section: AdminSection) {
+function renderSection(
+  section: AdminSection,
+) {
   switch (section) {
     case "dashboard":
       return <AdminDashboard />;
@@ -28,13 +31,7 @@ function renderSection(section: AdminSection) {
       return <RoomsSection />;
 
     case "rates":
-      return (
-        <AdminEmptySection
-          eyebrow="Pricing"
-          title="Tarife"
-          description="Administrarea tarifelor weekday, weekend și a perioadelor tarifare."
-        />
-      );
+      return <AdminRates />;
 
     case "promotions":
       return (
@@ -69,20 +66,30 @@ function renderSection(section: AdminSection) {
 }
 
 export function AdminPanel() {
-  const [activeSection, setActiveSection] =
-    useState<AdminSection>("dashboard");
+  const [
+    activeSection,
+    setActiveSection,
+  ] = useState<AdminSection>(
+    "dashboard",
+  );
 
   return (
     <main className="min-h-screen bg-[#050505] text-[#f5f2eb]">
       <AdminHeader />
 
       <AdminNavigation
-        activeSection={activeSection}
-        onSectionChange={setActiveSection}
+        activeSection={
+          activeSection
+        }
+        onSectionChange={
+          setActiveSection
+        }
       />
 
-      <div className="mx-auto max-w-[1800px] px-6 py-12 md:px-10 md:py-16">
-        {renderSection(activeSection)}
+      <div className="mx-auto w-full max-w-[1800px] px-6 py-12 md:px-10 md:py-16">
+        {renderSection(
+          activeSection,
+        )}
       </div>
     </main>
   );

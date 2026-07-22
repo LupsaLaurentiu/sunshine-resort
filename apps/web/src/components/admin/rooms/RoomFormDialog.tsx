@@ -45,6 +45,7 @@ type RoomFormState = {
   code: string;
   roomTypeId: string;
   tvDeviceId: string;
+  allowsExtraAdult: boolean;
 };
 
 const EMPTY_FORM: RoomFormState = {
@@ -52,6 +53,7 @@ const EMPTY_FORM: RoomFormState = {
   code: "",
   roomTypeId: "",
   tvDeviceId: "",
+  allowsExtraAdult: false,
 };
 
 function getInitialForm(
@@ -67,6 +69,8 @@ function getInitialForm(
     roomTypeId: room.roomTypeId,
     tvDeviceId:
       room.tvDeviceId ?? "",
+    allowsExtraAdult:
+      room.allowsExtraAdult,
   };
 }
 
@@ -182,10 +186,6 @@ export function RoomFormDialog({
       ],
     );
 
-  const allowsExtraAdult =
-    selectedRoomType
-      ?.allowsExtraAdult === true;
-
   if (!isOpen) {
     return null;
   }
@@ -249,6 +249,9 @@ export function RoomFormDialog({
       roomTypeId:
         form.roomTypeId,
 
+      allowsExtraAdult:
+        form.allowsExtraAdult,
+
       ...(form.tvDeviceId.trim() && {
         tvDeviceId:
           form.tvDeviceId.trim(),
@@ -305,7 +308,7 @@ export function RoomFormDialog({
             </h2>
 
             <p className="mt-3 max-w-xl text-sm leading-7 text-white/40">
-              Configurează apartamentul fizic, tipul său și asocierea cu sistemul TV Welcome.
+              Configurează apartamentul fizic, tipul său, capacitatea și asocierea cu sistemul TV Welcome.
             </p>
           </div>
 
@@ -407,54 +410,81 @@ export function RoomFormDialog({
               </p>
 
               <div
-                className={`flex min-h-12 items-center gap-4 border px-4 ${
-                  selectedRoomType
-                    ? allowsExtraAdult
-                      ? "border-emerald-300/20 bg-emerald-300/5"
-                      : "border-white/10 bg-[#050505]"
+                className={`flex min-h-[72px] items-center justify-between gap-5 border px-5 py-4 transition ${
+                  form.allowsExtraAdult
+                    ? "border-gold/35 bg-gold/[0.06]"
                     : "border-white/10 bg-[#050505]"
                 }`}
               >
-                <Users
-                  className={`h-4 w-4 shrink-0 ${
-                    allowsExtraAdult
-                      ? "text-emerald-300"
-                      : "text-white/25"
-                  }`}
-                />
-
-                <div className="min-w-0 py-3">
-                  <p
-                    className={`text-sm ${
-                      allowsExtraAdult
-                        ? "text-emerald-200"
-                        : "text-white/45"
+                <div className="flex min-w-0 items-start gap-4">
+                  <Users
+                    className={`mt-0.5 h-4 w-4 shrink-0 ${
+                      form.allowsExtraAdult
+                        ? "text-gold"
+                        : "text-white/25"
                     }`}
-                  >
-                    {!selectedRoomType
-                      ? "Selectează mai întâi tipul"
-                      : allowsExtraAdult
-                        ? "Este permis"
-                        : "Nu este permis"}
-                  </p>
+                  />
 
-                  {selectedRoomType &&
-                    allowsExtraAdult && (
-                      <p className="mt-1 text-xs text-white/30">
-                        Maximum un adult suplimentar
-                        {" · "}
-                        {formatExtraAdultPrice(
-                          selectedRoomType.extraAdultPrice,
-                        )}
-                        {" / noapte"}
-                      </p>
-                    )}
+                  <div className="min-w-0">
+                    <p
+                      className={`text-sm ${
+                        form.allowsExtraAdult
+                          ? "text-white/80"
+                          : "text-white/45"
+                      }`}
+                    >
+                      Permite un adult suplimentar
+                    </p>
+
+                    <p className="mt-1 text-xs leading-5 text-white/25">
+                      Maximum o persoană în plus pentru acest apartament.
+                    </p>
+                  </div>
                 </div>
+
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={
+                    form.allowsExtraAdult
+                  }
+                  aria-label="Permite un adult suplimentar"
+                  disabled={isSaving}
+                  onClick={() =>
+                    updateField(
+                      "allowsExtraAdult",
+                      !form.allowsExtraAdult,
+                    )
+                  }
+                  className={`relative h-7 w-14 shrink-0 rounded-full border transition-all duration-300 disabled:cursor-wait disabled:opacity-50 ${
+                    form.allowsExtraAdult
+                      ? "border-gold bg-gold/20"
+                      : "border-white/15 bg-black"
+                  }`}
+                >
+                  <span
+                    className={`absolute top-1 h-5 w-5 rounded-full transition-all duration-300 ${
+                      form.allowsExtraAdult
+                        ? "left-8 bg-gold"
+                        : "left-1 bg-white/45"
+                    }`}
+                  />
+                </button>
               </div>
 
-              <p className="mt-2 text-xs leading-6 text-white/25">
-                Regula este configurată la nivelul tipului de apartament.
-              </p>
+              {selectedRoomType &&
+                form.allowsExtraAdult && (
+                  <p className="mt-2 text-xs leading-6 text-white/30">
+                    Tarif configurat pentru{" "}
+                    {selectedRoomType.nameRo}:{" "}
+                    <span className="text-gold">
+                      {formatExtraAdultPrice(
+                        selectedRoomType.extraAdultPrice,
+                      )}{" "}
+                      / noapte
+                    </span>
+                  </p>
+                )}
             </div>
           </div>
 

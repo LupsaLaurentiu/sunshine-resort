@@ -8,19 +8,10 @@ export type AdminRoomTypeSummary = {
   maxAdults: number;
 
   /**
-   * Indică dacă tipul de apartament permite
-   * maximum un adult suplimentar.
-   *
-   * Temporar opțional până la actualizarea backend-ului.
+   * Tariful pentru un adult suplimentar,
+   * aplicat pentru fiecare noapte.
    */
-  allowsExtraAdult?: boolean;
-
-  /**
-   * Prețul pentru adultul suplimentar, per noapte.
-   *
-   * Temporar opțional până la actualizarea backend-ului.
-   */
-  extraAdultPrice?: number | null;
+  extraAdultPrice: number;
 
   isActive: boolean;
 };
@@ -36,6 +27,12 @@ export type AdminRoom = {
   floor: number | null;
   tvDeviceId: string | null;
 
+  /**
+   * Indică dacă apartamentul fizic permite
+   * maximum un adult suplimentar.
+   */
+  allowsExtraAdult: boolean;
+
   isActive: boolean;
 
   createdAt: string;
@@ -49,10 +46,9 @@ export type CreateAdminRoomRequest = {
   code: string;
   roomTypeId: string;
 
-  floor?: number;
   tvDeviceId?: string;
 
-  isActive?: boolean;
+  allowsExtraAdult: boolean;
 };
 
 export type UpdateAdminRoomRequest =

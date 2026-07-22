@@ -14,12 +14,8 @@ type RoomCardProps = {
 };
 
 function formatExtraAdultPrice(
-  value: number | null | undefined,
+  value: number,
 ): string {
-  if (value === null || value === undefined) {
-    return "Tarif neconfigurat";
-  }
-
   return new Intl.NumberFormat(
     "ro-RO",
     {
@@ -36,15 +32,7 @@ export function RoomCard({
   onEdit,
 }: RoomCardProps) {
   const allowsExtraAdult =
-    room.roomType.allowsExtraAdult === true;
-
-  const includedAdults =
-    room.roomType.maxAdults;
-
-  const maximumAdults =
-    allowsExtraAdult
-      ? includedAdults + 1
-      : includedAdults;
+    room.allowsExtraAdult;
 
   return (
     <article className="group border border-white/10 bg-[#0b0b0b] transition hover:border-white/20">
@@ -82,13 +70,18 @@ export function RoomCard({
       <div className="grid gap-px bg-white/10 sm:grid-cols-2">
         <RoomDetail
           icon={Users}
-          label="Capacitate"
-          value={`${maximumAdults} adulți`}
+          label="Adult suplimentar"
+          value={
+            allowsExtraAdult
+              ? "Permis"
+              : "Nu este permis"
+          }
           secondaryValue={
             allowsExtraAdult
-              ? `${includedAdults} incluși + 1 extra`
-              : `${includedAdults} incluși`
+              ? "Maximum o persoană în plus"
+              : "Capacitate standard"
           }
+          accent={allowsExtraAdult}
         />
 
         <RoomDetail
@@ -98,37 +91,19 @@ export function RoomCard({
             room.tvDeviceId?.trim() ||
             "Neconfigurat"
           }
-          muted={!room.tvDeviceId}
           secondaryValue={
             room.tvDeviceId
               ? "Dispozitiv asociat"
               : "Necesită configurare"
           }
+          muted={!room.tvDeviceId}
         />
       </div>
 
       <div className="grid gap-px bg-white/10 sm:grid-cols-2">
         <div className="bg-[#0b0b0b] px-6 py-5">
           <p className="text-[9px] uppercase tracking-[0.24em] text-white/25">
-            Adult suplimentar
-          </p>
-
-          <p
-            className={`mt-2 text-sm ${
-              allowsExtraAdult
-                ? "text-emerald-300"
-                : "text-white/35"
-            }`}
-          >
-            {allowsExtraAdult
-              ? "Permis"
-              : "Nu este permis"}
-          </p>
-        </div>
-
-        <div className="bg-[#0b0b0b] px-6 py-5">
-          <p className="text-[9px] uppercase tracking-[0.24em] text-white/25">
-            Tarif extra
+            Tarif adult suplimentar
           </p>
 
           <p
@@ -145,10 +120,8 @@ export function RoomCard({
               : "—"}
           </p>
         </div>
-      </div>
 
-      <div className="flex items-center justify-between gap-5 px-6 py-5">
-        <div>
+        <div className="bg-[#0b0b0b] px-6 py-5">
           <p className="text-[9px] uppercase tracking-[0.24em] text-white/25">
             Tip apartament
           </p>
@@ -157,7 +130,9 @@ export function RoomCard({
             {room.roomType.nameRo}
           </p>
         </div>
+      </div>
 
+      <div className="flex justify-end px-6 py-5">
         <button
           type="button"
           onClick={() => onEdit(room)}
@@ -176,6 +151,7 @@ type RoomDetailProps = {
   value: string;
   secondaryValue?: string;
   muted?: boolean;
+  accent?: boolean;
 };
 
 function RoomDetail({
@@ -184,11 +160,18 @@ function RoomDetail({
   value,
   secondaryValue,
   muted = false,
+  accent = false,
 }: RoomDetailProps) {
   return (
     <div className="bg-[#0b0b0b] px-6 py-5">
       <div className="flex items-start gap-4">
-        <Icon className="mt-0.5 h-4 w-4 shrink-0 text-gold" />
+        <Icon
+          className={`mt-0.5 h-4 w-4 shrink-0 ${
+            accent
+              ? "text-emerald-300"
+              : "text-gold"
+          }`}
+        />
 
         <div className="min-w-0">
           <p className="text-[9px] uppercase tracking-[0.24em] text-white/25">
@@ -197,9 +180,11 @@ function RoomDetail({
 
           <p
             className={`mt-2 truncate text-sm ${
-              muted
-                ? "text-white/30"
-                : "text-white/65"
+              accent
+                ? "text-emerald-200"
+                : muted
+                  ? "text-white/30"
+                  : "text-white/65"
             }`}
             title={value}
           >
