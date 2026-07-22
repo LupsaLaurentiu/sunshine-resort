@@ -29,6 +29,7 @@ type CurrentRoomSelection = {
   roomTypeId: string;
   quantity: number;
   adultsPerRoom: number;
+  extraAdultQuantity: number;
 };
 
 @Injectable()
@@ -120,6 +121,7 @@ export class ReservationChangeReviewService {
         rooms: roomSelections.map((selection) => ({
           roomTypeId: selection.roomTypeId,
           quantity: selection.quantity,
+          extraAdultQuantity: selection.extraAdultQuantity,
         })),
       });
 
@@ -432,6 +434,7 @@ export class ReservationChangeReviewService {
         rooms: roomSelections.map((selection) => ({
           roomTypeId: selection.roomTypeId,
           quantity: selection.quantity,
+          extraAdultQuantity: selection.extraAdultQuantity,
         })),
       });
 
@@ -869,12 +872,23 @@ export class ReservationChangeReviewService {
       }
 
       for (const reservationRoom of reservationRooms) {
+        const index =
+          reservationRooms.indexOf(reservationRoom);
+
+        const hasExtraAdult =
+          index < selection.extraAdultQuantity;
+
         await transaction.reservationRoom.update({
           where: {
             id: reservationRoom.id,
           },
+
           data: {
-            adults: selection.adultsPerRoom,
+            adults:
+              selection.adultsPerRoom +
+              (hasExtraAdult ? 1 : 0),
+
+            hasExtraAdult,
 
             weekdayNights:
               pricedRoom.weekdayNights,
@@ -882,7 +896,8 @@ export class ReservationChangeReviewService {
             weekendNights:
               pricedRoom.weekendNights,
 
-            nights: pricedRoom.nights,
+            nights:
+              pricedRoom.nights,
 
             weekdayPricePerNight:
               pricedRoom.weekdayAveragePrice,
@@ -890,7 +905,21 @@ export class ReservationChangeReviewService {
             weekendPricePerNight:
               pricedRoom.weekendAveragePrice,
 
-            subtotal: pricedRoom.pricePerUnit,
+            extraAdultPricePerNight:
+              hasExtraAdult
+                ? pricedRoom.extraAdultPricePerNight
+                : 0,
+
+            extraAdultSubtotal:
+              hasExtraAdult
+                ? pricedRoom.extraAdultPricePerUnit
+                : 0,
+
+            subtotal:
+              pricedRoom.pricePerUnit +
+              (hasExtraAdult
+                ? pricedRoom.extraAdultPricePerUnit
+                : 0),
           },
         });
       }
@@ -952,34 +981,38 @@ export class ReservationChangeReviewService {
     reservationRooms: Array<{
       roomTypeId: string;
       adults: number;
+      hasExtraAdult: boolean;
     }>,
   ): CurrentRoomSelection[] {
-    const selections = new Map<
-      string,
-      CurrentRoomSelection
-    >();
+    const selections = new Map<string, CurrentRoomSelection>();
 
     for (const reservationRoom of reservationRooms) {
+      const standardAdults =
+        reservationRoom.adults -
+        (reservationRoom.hasExtraAdult ? 1 : 0);
+
       const existing = selections.get(
         reservationRoom.roomTypeId,
       );
 
       if (existing) {
         existing.quantity += 1;
-
         existing.adultsPerRoom = Math.max(
           existing.adultsPerRoom,
-          reservationRoom.adults,
+          standardAdults,
         );
+        if (reservationRoom.hasExtraAdult) {
+          existing.extraAdultQuantity += 1;
+        }
       } else {
         selections.set(
           reservationRoom.roomTypeId,
           {
-            roomTypeId:
-              reservationRoom.roomTypeId,
+            roomTypeId: reservationRoom.roomTypeId,
             quantity: 1,
-            adultsPerRoom:
-              reservationRoom.adults,
+            adultsPerRoom: standardAdults,
+            extraAdultQuantity:
+              reservationRoom.hasExtraAdult ? 1 : 0,
           },
         );
       }

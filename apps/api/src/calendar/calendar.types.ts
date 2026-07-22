@@ -26,6 +26,13 @@ export type CalendarReservationEvent = {
   status: ReservationStatus;
 
   adults: number;
+
+  /**
+   * Indică dacă această unitate rezervată
+   * utilizează opțiunea de adult suplimentar.
+   */
+  hasExtraAdult: boolean;
+
   source: string;
 
   totalPrice: number;
@@ -83,6 +90,13 @@ export type CalendarUnassignedReservation = {
   status: ReservationStatus;
 
   adults: number;
+
+  /**
+   * Va fi afișat în calendar pentru
+   * rezervările încă nealocate.
+   */
+  hasExtraAdult: boolean;
+
   source: string;
 
   totalPrice: number;

@@ -42,6 +42,13 @@ export class CreateRoomTypeDto {
   maxAdults!: number;
 
   @IsOptional()
+  @IsNumber({
+    maxDecimalPlaces: 2,
+  })
+  @Min(0)
+  extraAdultPrice!: number;
+
+  @IsOptional()
   @IsInt()
   @Min(1)
   sizeSqm?: number;

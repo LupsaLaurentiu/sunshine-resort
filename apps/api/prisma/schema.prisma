@@ -96,9 +96,23 @@ model RoomType {
   weekdayBasePrice Decimal @db.Decimal(10, 2)
   weekendBasePrice Decimal @db.Decimal(10, 2)
 
+  /**
+   * Capacitatea standard a unui apartament.
+   * Adultul suplimentar este permis numai pentru camerele fizice
+   * care au allowsExtraAdult = true.
+   */
   maxAdults Int
-  sizeSqm   Int?
-  isActive  Boolean @default(true)
+
+  /**
+   * Tarif aplicat pentru un singur adult suplimentar,
+   * pentru fiecare noapte și pentru fiecare apartament eligibil.
+   * null înseamnă că tipul de apartament nu are configurat
+   * un tarif pentru adult suplimentar.
+   */
+  extraAdultPrice Decimal @default(0) @db.Decimal(10, 2)
+
+  sizeSqm  Int?
+  isActive Boolean @default(true)
 
   rooms            Room[]
   reservationRooms ReservationRoom[]
@@ -120,6 +134,12 @@ model Room {
   tvDeviceId String? @unique
   isActive   Boolean @default(true)
 
+  /**
+   * Indică dacă această cameră fizică poate găzdui
+   * maximum un adult peste capacitatea standard RoomType.maxAdults.
+   */
+  allowsExtraAdult Boolean @default(false)
+
   roomType          RoomType           @relation(fields: [roomTypeId], references: [id])
   reservationRooms  ReservationRoom[]
   blockedPeriods    BlockedPeriod[]
@@ -130,6 +150,7 @@ model Room {
 
   @@index([roomTypeId])
   @@index([isActive])
+  @@index([roomTypeId, allowsExtraAdult, isActive])
 }
 
 model Guest {
@@ -194,6 +215,7 @@ model Reservation {
   confirmedAt  DateTime?
   checkedInAt  DateTime?
   checkedOutAt DateTime?
+
   sevenDayReminderSentAt DateTime?
   oneDayReminderSentAt   DateTime?
   postStayEmailSentAt    DateTime?
@@ -229,7 +251,19 @@ model ReservationRoom {
   roomTypeId    String
   roomId        String?
 
+  /**
+   * Numărul total de adulți pentru această unitate.
+   * Exemplu:
+   * - capacitate standard: 2
+   * - hasExtraAdult: true
+   * - adults: 3
+   */
   adults Int
+
+  /**
+   * Maximum un adult suplimentar pentru fiecare apartament.
+   */
+  hasExtraAdult Boolean @default(false)
 
   weekdayNights Int @default(0)
   weekendNights Int @default(0)
@@ -237,7 +271,24 @@ model ReservationRoom {
 
   weekdayPricePerNight Decimal @db.Decimal(10, 2)
   weekendPricePerNight Decimal @db.Decimal(10, 2)
-  subtotal             Decimal @db.Decimal(10, 2)
+
+  /**
+   * Snapshot-ul tarifului pentru adultul suplimentar
+   * la momentul rezervării.
+   */
+  extraAdultPricePerNight Decimal @default(0) @db.Decimal(10, 2)
+
+  /**
+   * extraAdultPricePerNight × nights,
+   * dacă hasExtraAdult este true.
+   */
+  extraAdultSubtotal Decimal @default(0) @db.Decimal(10, 2)
+
+  /**
+   * Totalul final al acestei unități:
+   * cazare de bază + adult suplimentar.
+   */
+  subtotal Decimal @db.Decimal(10, 2)
 
   reservation Reservation @relation(fields: [reservationId], references: [id], onDelete: Cascade)
   roomType    RoomType    @relation(fields: [roomTypeId], references: [id])
@@ -247,6 +298,7 @@ model ReservationRoom {
   @@index([reservationId])
   @@index([roomTypeId])
   @@index([roomId])
+  @@index([reservationId, hasExtraAdult])
 }
 
 model RatePeriod {

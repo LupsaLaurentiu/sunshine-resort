@@ -11,7 +11,9 @@ import { UpdateRoomDto } from './dto/update-room.dto';
 
 @Injectable()
 export class RoomsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+  ) {}
 
   async findAll(): Promise<Room[]> {
     return this.prisma.room.findMany({
@@ -25,6 +27,7 @@ export class RoomsService {
           code: 'asc',
         },
       ],
+
       include: {
         roomType: true,
       },
@@ -36,38 +39,49 @@ export class RoomsService {
       where: {
         isActive: true,
       },
+
       orderBy: {
         code: 'asc',
       },
+
       include: {
         roomType: true,
       },
     });
   }
 
-  async findById(id: string): Promise<Room> {
-    const room = await this.prisma.room.findUnique({
-      where: {
-        id,
-      },
-      include: {
-        roomType: true,
-      },
-    });
+  async findById(
+    id: string,
+  ): Promise<Room> {
+    const room =
+      await this.prisma.room.findUnique({
+        where: {
+          id,
+        },
+
+        include: {
+          roomType: true,
+        },
+      });
 
     if (!room) {
-      throw new NotFoundException('Apartamentul nu a fost găsit.');
+      throw new NotFoundException(
+        'Apartamentul nu a fost găsit.',
+      );
     }
 
     return room;
   }
 
-  async create(dto: CreateRoomDto): Promise<Room> {
-    const roomType = await this.prisma.roomType.findUnique({
-      where: {
-        id: dto.roomTypeId,
-      },
-    });
+  async create(
+    dto: CreateRoomDto,
+  ): Promise<Room> {
+    const roomType =
+      await this.prisma.roomType.findUnique({
+        where: {
+          id: dto.roomTypeId,
+        },
+      });
 
     if (!roomType) {
       throw new NotFoundException(
@@ -81,46 +95,126 @@ export class RoomsService {
       );
     }
 
+    if (
+      dto.allowsExtraAdult === true &&
+      roomType.extraAdultPrice === null
+    ) {
+      throw new ConflictException({
+        code: 'EXTRA_ADULT_PRICE_NOT_CONFIGURED',
+        message:
+          'Nu poți permite un adult suplimentar pentru acest apartament până când tipul de apartament nu are configurat tariful pentru adult suplimentar.',
+        roomTypeId: roomType.id,
+      });
+    }
+
     try {
       return await this.prisma.room.create({
         data: {
-          name: dto.name.trim(),
-          code: dto.code.trim().toUpperCase(),
-          roomTypeId: dto.roomTypeId,
-          floor: dto.floor,
-          tvDeviceId: dto.tvDeviceId?.trim(),
-          isActive: dto.isActive ?? true,
+          name:
+            dto.name.trim(),
+
+          code:
+            dto.code
+              .trim()
+              .toUpperCase(),
+
+          roomTypeId:
+            dto.roomTypeId,
+
+          floor:
+            dto.floor,
+
+          tvDeviceId:
+            dto.tvDeviceId?.trim(),
+
+          allowsExtraAdult:
+            dto.allowsExtraAdult ??
+            false,
+
+          isActive:
+            dto.isActive ??
+            true,
         },
+
         include: {
           roomType: true,
         },
       });
     } catch (error: unknown) {
-      this.handleUniqueConstraint(error);
+      this.handleUniqueConstraint(
+        error,
+      );
+
       throw error;
     }
   }
 
-  async update(id: string, dto: UpdateRoomDto): Promise<Room> {
-    await this.findById(id);
+  async update(
+    id: string,
+    dto: UpdateRoomDto,
+  ): Promise<Room> {
+    const currentRoom =
+      await this.findById(id);
 
-    if (dto.roomTypeId !== undefined) {
-      const roomType = await this.prisma.roomType.findUnique({
-        where: {
-          id: dto.roomTypeId,
-        },
-      });
+    const nextRoomTypeId =
+      dto.roomTypeId ??
+      currentRoom.roomTypeId;
 
-      if (!roomType) {
+    const nextAllowsExtraAdult =
+      dto.allowsExtraAdult ??
+      currentRoom.allowsExtraAdult;
+
+    let nextRoomType:
+      | {
+          id: string;
+          isActive: boolean;
+          extraAdultPrice:
+            | Prisma.Decimal
+            | null;
+        }
+      | null = null;
+
+    if (
+      dto.roomTypeId !== undefined ||
+      dto.allowsExtraAdult !== undefined
+    ) {
+      nextRoomType =
+        await this.prisma.roomType.findUnique({
+          where: {
+            id: nextRoomTypeId,
+          },
+
+          select: {
+            id: true,
+            isActive: true,
+            extraAdultPrice: true,
+          },
+        });
+
+      if (!nextRoomType) {
         throw new NotFoundException(
           'Tipul de apartament asociat nu a fost găsit.',
         );
       }
 
-      if (!roomType.isActive) {
+      if (!nextRoomType.isActive) {
         throw new ConflictException(
           'Nu poți muta apartamentul într-un tip inactiv.',
         );
+      }
+
+      if (
+        nextAllowsExtraAdult &&
+        nextRoomType.extraAdultPrice ===
+          null
+      ) {
+        throw new ConflictException({
+          code: 'EXTRA_ADULT_PRICE_NOT_CONFIGURED',
+          message:
+            'Nu poți permite un adult suplimentar pentru acest apartament până când tipul de apartament nu are configurat tariful pentru adult suplimentar.',
+          roomTypeId:
+            nextRoomType.id,
+        });
       }
     }
 
@@ -129,68 +223,115 @@ export class RoomsService {
         where: {
           id,
         },
+
         data: {
           ...(dto.name !== undefined && {
-            name: dto.name.trim(),
+            name:
+              dto.name.trim(),
           }),
+
           ...(dto.code !== undefined && {
-            code: dto.code.trim().toUpperCase(),
+            code:
+              dto.code
+                .trim()
+                .toUpperCase(),
           }),
+
           ...(dto.roomTypeId !== undefined && {
-            roomTypeId: dto.roomTypeId,
+            roomTypeId:
+              dto.roomTypeId,
           }),
+
           ...(dto.floor !== undefined && {
-            floor: dto.floor,
+            floor:
+              dto.floor,
           }),
+
           ...(dto.tvDeviceId !== undefined && {
-            tvDeviceId: dto.tvDeviceId.trim(),
+            tvDeviceId:
+              dto.tvDeviceId.trim(),
           }),
+
+          ...(dto.allowsExtraAdult !==
+            undefined && {
+            allowsExtraAdult:
+              dto.allowsExtraAdult,
+          }),
+
           ...(dto.isActive !== undefined && {
-            isActive: dto.isActive,
+            isActive:
+              dto.isActive,
           }),
         },
+
         include: {
           roomType: true,
         },
       });
     } catch (error: unknown) {
-      this.handleUniqueConstraint(error);
+      this.handleUniqueConstraint(
+        error,
+      );
+
       throw error;
     }
   }
 
-  async deactivate(id: string): Promise<Room> {
+  async deactivate(
+    id: string,
+  ): Promise<Room> {
     await this.findById(id);
 
     return this.prisma.room.update({
       where: {
         id,
       },
+
       data: {
         isActive: false,
       },
+
       include: {
         roomType: true,
       },
     });
   }
 
-  private handleUniqueConstraint(error: unknown): void {
+  private handleUniqueConstraint(
+    error: unknown,
+  ): void {
     if (
-      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error instanceof
+        Prisma.PrismaClientKnownRequestError &&
       error.code === 'P2002'
     ) {
-      const target = Array.isArray(error.meta?.target)
-        ? error.meta.target.join(', ')
-        : String(error.meta?.target ?? '');
+      const target =
+        Array.isArray(
+          error.meta?.target,
+        )
+          ? error.meta.target.join(
+              ', ',
+            )
+          : String(
+              error.meta?.target ??
+                '',
+            );
 
-      if (target.includes('code')) {
+      if (
+        target.includes(
+          'code',
+        )
+      ) {
         throw new ConflictException(
           'Există deja un apartament cu acest cod.',
         );
       }
 
-      if (target.includes('tvDeviceId')) {
+      if (
+        target.includes(
+          'tvDeviceId',
+        )
+      ) {
         throw new ConflictException(
           'Acest televizor este deja asociat altui apartament.',
         );

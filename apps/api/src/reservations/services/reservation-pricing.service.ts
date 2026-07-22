@@ -23,18 +23,55 @@ export type RoomStayPrice = {
   roomTypeNameEn: string;
 
   quantity: number;
+
+  /**
+   * Numărul unităților din această selecție care au
+   * câte un adult suplimentar.
+   */
+  extraAdultQuantity: number;
+
   nights: number;
   weekdayNights: number;
   weekendNights: number;
 
   /**
-   * Medii ponderate. Sunt utile pentru snapshot-ul actual
-   * din ReservationRoom.
+   * Medii ponderate ale tarifului de bază.
+   * Sunt folosite pentru snapshot-ul din ReservationRoom.
    */
   weekdayAveragePrice: number;
   weekendAveragePrice: number;
 
+  /**
+   * Prețul de bază pentru o singură unitate,
+   * pentru întreaga perioadă.
+   */
   pricePerUnit: number;
+
+  /**
+   * Tariful adultului suplimentar pentru o singură noapte.
+   */
+  extraAdultPricePerNight: number;
+
+  /**
+   * Costul adultului suplimentar pentru o singură unitate,
+   * pentru întreaga perioadă.
+   */
+  extraAdultPricePerUnit: number;
+
+  /**
+   * Costul total al adulților suplimentari:
+   *
+   * extraAdultQuantity × nights × extraAdultPricePerNight
+   */
+  extraAdultSubtotal: number;
+
+  /**
+   * Totalul selecției:
+   *
+   * preț bază pentru toate unitățile
+   * +
+   * cost adulți suplimentari.
+   */
   subtotal: number;
 
   hasPromotion: boolean;
@@ -54,6 +91,7 @@ export type ReservationPrice = {
 export type RoomPricingSelection = {
   roomTypeId: string;
   quantity: number;
+  extraAdultQuantity?: number;
 };
 
 type RoomTypeWithRates = Prisma.RoomTypeGetPayload<{
@@ -66,26 +104,42 @@ type RoomTypeWithRates = Prisma.RoomTypeGetPayload<{
 export class ReservationPricingService {
   private static readonly DEPOSIT_PERCENTAGE = 50;
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+  ) {}
 
   async calculateNightlyRates(
     roomTypeId: string,
     checkIn: string,
     checkOut: string,
   ): Promise<PricingNightRate[]> {
-    const checkInDate = this.parseDate(checkIn, 'checkIn');
-    const checkOutDate = this.parseDate(checkOut, 'checkOut');
+    const checkInDate = this.parseDate(
+      checkIn,
+      'checkIn',
+    );
 
-    this.validateDateRange(checkInDate, checkOutDate);
+    const checkOutDate = this.parseDate(
+      checkOut,
+      'checkOut',
+    );
 
-    const roomType = await this.findRoomTypeWithRates(
-      roomTypeId,
+    this.validateDateRange(
       checkInDate,
       checkOutDate,
     );
 
+    const roomType =
+      await this.findRoomTypeWithRates(
+        roomTypeId,
+        checkInDate,
+        checkOutDate,
+      );
+
     return this.buildNightlyRates(
-      this.getStayDates(checkInDate, checkOutDate),
+      this.getStayDates(
+        checkInDate,
+        checkOutDate,
+      ),
       roomType,
     );
   }
@@ -93,64 +147,182 @@ export class ReservationPricingService {
   async calculateStayPrice(params: {
     roomTypeId: string;
     quantity: number;
+    extraAdultQuantity?: number;
     checkIn: string;
     checkOut: string;
   }): Promise<RoomStayPrice> {
-    if (!Number.isInteger(params.quantity) || params.quantity < 1) {
+    if (
+      !Number.isInteger(params.quantity) ||
+      params.quantity < 1
+    ) {
       throw new BadRequestException(
         'Cantitatea de apartamente trebuie să fie un număr întreg pozitiv.',
       );
     }
 
-    const checkInDate = this.parseDate(params.checkIn, 'checkIn');
-    const checkOutDate = this.parseDate(params.checkOut, 'checkOut');
+    const extraAdultQuantity =
+      params.extraAdultQuantity ?? 0;
 
-    this.validateDateRange(checkInDate, checkOutDate);
+    this.validateExtraAdultQuantity(
+      extraAdultQuantity,
+      params.quantity,
+    );
 
-    const roomType = await this.findRoomTypeWithRates(
-      params.roomTypeId,
+    const checkInDate = this.parseDate(
+      params.checkIn,
+      'checkIn',
+    );
+
+    const checkOutDate = this.parseDate(
+      params.checkOut,
+      'checkOut',
+    );
+
+    this.validateDateRange(
       checkInDate,
       checkOutDate,
     );
 
-    const nightlyRates = this.buildNightlyRates(
-      this.getStayDates(checkInDate, checkOutDate),
-      roomType,
-    );
+    const roomType =
+      await this.findRoomTypeWithRates(
+        params.roomTypeId,
+        checkInDate,
+        checkOutDate,
+      );
 
-    const weekdayRates = nightlyRates.filter(
-      (rate) => rate.rateType === 'WEEKDAY',
-    );
+    if (
+      extraAdultQuantity > 0 &&
+      roomType.extraAdultPrice.lessThanOrEqualTo(0)
+    ) {
+      throw new BadRequestException({
+        code: 'EXTRA_ADULT_PRICE_NOT_CONFIGURED',
+        message:
+          'Tipul de apartament selectat nu are configurat un tarif valid pentru adult suplimentar.',
+        roomTypeId: roomType.id,
+      });
+    }
 
-    const weekendRates = nightlyRates.filter(
-      (rate) => rate.rateType === 'WEEKEND',
-    );
+    const nightlyRates =
+      this.buildNightlyRates(
+        this.getStayDates(
+          checkInDate,
+          checkOutDate,
+        ),
+        roomType,
+      );
 
-    const pricePerUnit = nightlyRates.reduce(
-      (total, rate) => total.plus(rate.price),
-      new Prisma.Decimal(0),
-    );
+    const weekdayRates =
+      nightlyRates.filter(
+        (rate) =>
+          rate.rateType === 'WEEKDAY',
+      );
 
-    const subtotal = pricePerUnit.mul(params.quantity);
+    const weekendRates =
+      nightlyRates.filter(
+        (rate) =>
+          rate.rateType === 'WEEKEND',
+      );
+
+    /*
+     * Prețul de bază pentru o singură unitate,
+     * pentru întreaga perioadă.
+     */
+    const pricePerUnit =
+      nightlyRates.reduce(
+        (total, rate) =>
+          total.plus(rate.price),
+        new Prisma.Decimal(0),
+      );
+
+    const baseSubtotal =
+      pricePerUnit.mul(params.quantity);
+
+    const extraAdultPricePerNight =
+      roomType.extraAdultPrice;
+
+    const extraAdultPricePerUnit =
+      extraAdultPricePerNight.mul(
+        nightlyRates.length,
+      );
+
+    const extraAdultSubtotal =
+      extraAdultPricePerUnit.mul(
+        extraAdultQuantity,
+      );
+
+    const subtotal =
+      baseSubtotal.plus(
+        extraAdultSubtotal,
+      );
 
     return {
-      roomTypeId: roomType.id,
-      roomTypeSlug: roomType.slug,
-      roomTypeNameRo: roomType.nameRo,
-      roomTypeNameEn: roomType.nameEn,
+      roomTypeId:
+        roomType.id,
 
-      quantity: params.quantity,
-      nights: nightlyRates.length,
-      weekdayNights: weekdayRates.length,
-      weekendNights: weekendRates.length,
+      roomTypeSlug:
+        roomType.slug,
 
-      weekdayAveragePrice: this.calculateAveragePrice(weekdayRates),
-      weekendAveragePrice: this.calculateAveragePrice(weekendRates),
+      roomTypeNameRo:
+        roomType.nameRo,
 
-      pricePerUnit: pricePerUnit.toNumber(),
-      subtotal: subtotal.toNumber(),
+      roomTypeNameEn:
+        roomType.nameEn,
 
-      hasPromotion: nightlyRates.some((rate) => rate.isPromotion),
+      quantity:
+        params.quantity,
+
+      extraAdultQuantity,
+
+      nights:
+        nightlyRates.length,
+
+      weekdayNights:
+        weekdayRates.length,
+
+      weekendNights:
+        weekendRates.length,
+
+      weekdayAveragePrice:
+        this.calculateAveragePrice(
+          weekdayRates,
+        ),
+
+      weekendAveragePrice:
+        this.calculateAveragePrice(
+          weekendRates,
+        ),
+
+      pricePerUnit:
+        pricePerUnit
+          .toDecimalPlaces(2)
+          .toNumber(),
+
+      extraAdultPricePerNight:
+        extraAdultPricePerNight
+          .toDecimalPlaces(2)
+          .toNumber(),
+
+      extraAdultPricePerUnit:
+        extraAdultPricePerUnit
+          .toDecimalPlaces(2)
+          .toNumber(),
+
+      extraAdultSubtotal:
+        extraAdultSubtotal
+          .toDecimalPlaces(2)
+          .toNumber(),
+
+      subtotal:
+        subtotal
+          .toDecimalPlaces(2)
+          .toNumber(),
+
+      hasPromotion:
+        nightlyRates.some(
+          (rate) =>
+            rate.isPromotion,
+        ),
+
       nightlyRates,
     };
   }
@@ -160,50 +332,112 @@ export class ReservationPricingService {
     checkOut: string;
     rooms: RoomPricingSelection[];
   }): Promise<ReservationPrice> {
-    if (params.rooms.length === 0) {
+    if (
+      params.rooms.length === 0
+    ) {
       throw new BadRequestException(
         'Rezervarea trebuie să conțină cel puțin un apartament.',
       );
     }
 
-    this.ensureUniqueRoomTypes(params.rooms);
-
-    const roomPrices = await Promise.all(
-      params.rooms.map((room) =>
-        this.calculateStayPrice({
-          roomTypeId: room.roomTypeId,
-          quantity: room.quantity,
-          checkIn: params.checkIn,
-          checkOut: params.checkOut,
-        }),
-      ),
+    this.ensureUniqueRoomTypes(
+      params.rooms,
     );
 
-    const subtotalPrice = roomPrices.reduce(
-      (total, room) => total.plus(room.subtotal),
-      new Prisma.Decimal(0),
-    );
+    const roomPrices =
+      await Promise.all(
+        params.rooms.map(
+          (room) =>
+            this.calculateStayPrice({
+              roomTypeId:
+                room.roomTypeId,
 
-    // Reducerile separate nu sunt încă aplicate.
-    const discountAmount = new Prisma.Decimal(0);
-    const totalPrice = subtotalPrice.minus(discountAmount);
+              quantity:
+                room.quantity,
+
+              extraAdultQuantity:
+                room.extraAdultQuantity ??
+                0,
+
+              checkIn:
+                params.checkIn,
+
+              checkOut:
+                params.checkOut,
+            }),
+        ),
+      );
+
+    const subtotalPrice =
+      roomPrices.reduce(
+        (total, room) =>
+          total.plus(
+            room.subtotal,
+          ),
+        new Prisma.Decimal(0),
+      );
+
+    /*
+     * Reducerile separate nu sunt încă aplicate.
+     */
+    const discountAmount =
+      new Prisma.Decimal(0);
+
+    const totalPrice =
+      subtotalPrice.minus(
+        discountAmount,
+      );
 
     return {
-      nights: roomPrices[0]?.nights ?? 0,
-      subtotalPrice: subtotalPrice.toNumber(),
-      discountAmount: discountAmount.toNumber(),
-      totalPrice: totalPrice.toNumber(),
-      depositAmount: this.calculateDeposit(totalPrice.toNumber()),
-      fullPaymentAmount: totalPrice.toNumber(),
-      rooms: roomPrices,
+      nights:
+        roomPrices[0]?.nights ??
+        0,
+
+      subtotalPrice:
+        subtotalPrice
+          .toDecimalPlaces(2)
+          .toNumber(),
+
+      discountAmount:
+        discountAmount
+          .toDecimalPlaces(2)
+          .toNumber(),
+
+      totalPrice:
+        totalPrice
+          .toDecimalPlaces(2)
+          .toNumber(),
+
+      depositAmount:
+        this.calculateDeposit(
+          totalPrice.toNumber(),
+        ),
+
+      fullPaymentAmount:
+        totalPrice
+          .toDecimalPlaces(2)
+          .toNumber(),
+
+      rooms:
+        roomPrices,
     };
   }
 
-  calculateDeposit(totalPrice: number): number {
-    this.validateMoneyAmount(totalPrice, 'Prețul total');
+  calculateDeposit(
+    totalPrice: number,
+  ): number {
+    this.validateMoneyAmount(
+      totalPrice,
+      'Prețul total',
+    );
 
-    return new Prisma.Decimal(totalPrice)
-      .mul(ReservationPricingService.DEPOSIT_PERCENTAGE)
+    return new Prisma.Decimal(
+      totalPrice,
+    )
+      .mul(
+        ReservationPricingService
+          .DEPOSIT_PERCENTAGE,
+      )
       .div(100)
       .toDecimalPlaces(2)
       .toNumber();
@@ -213,15 +447,29 @@ export class ReservationPricingService {
     totalPrice: number,
     paidAmount: number,
   ): number {
-    this.validateMoneyAmount(totalPrice, 'Prețul total');
-    this.validateMoneyAmount(paidAmount, 'Suma achitată');
-
-    const remainingBalance = Prisma.Decimal.max(
-      new Prisma.Decimal(totalPrice).minus(paidAmount),
-      new Prisma.Decimal(0),
+    this.validateMoneyAmount(
+      totalPrice,
+      'Prețul total',
     );
 
-    return remainingBalance.toDecimalPlaces(2).toNumber();
+    this.validateMoneyAmount(
+      paidAmount,
+      'Suma achitată',
+    );
+
+    const remainingBalance =
+      Prisma.Decimal.max(
+        new Prisma.Decimal(
+          totalPrice,
+        ).minus(
+          paidAmount,
+        ),
+        new Prisma.Decimal(0),
+      );
+
+    return remainingBalance
+      .toDecimalPlaces(2)
+      .toNumber();
   }
 
   calculateModificationDifference(
@@ -233,28 +481,53 @@ export class ReservationPricingService {
     retainedAmount: number;
     additionalPaymentRequired: boolean;
   } {
-    this.validateMoneyAmount(oldTotalPrice, 'Prețul vechi');
-    this.validateMoneyAmount(newCalculatedPrice, 'Prețul nou');
-
-    const difference = new Prisma.Decimal(newCalculatedPrice).minus(
+    this.validateMoneyAmount(
       oldTotalPrice,
+      'Prețul vechi',
     );
 
-    const amountDue = Prisma.Decimal.max(
-      difference,
-      new Prisma.Decimal(0),
+    this.validateMoneyAmount(
+      newCalculatedPrice,
+      'Prețul nou',
     );
 
-    const retainedAmount = Prisma.Decimal.max(
-      difference.negated(),
-      new Prisma.Decimal(0),
-    );
+    const difference =
+      new Prisma.Decimal(
+        newCalculatedPrice,
+      ).minus(
+        oldTotalPrice,
+      );
+
+    const amountDue =
+      Prisma.Decimal.max(
+        difference,
+        new Prisma.Decimal(0),
+      );
+
+    const retainedAmount =
+      Prisma.Decimal.max(
+        difference.negated(),
+        new Prisma.Decimal(0),
+      );
 
     return {
-      priceDifference: difference.toDecimalPlaces(2).toNumber(),
-      amountDue: amountDue.toDecimalPlaces(2).toNumber(),
-      retainedAmount: retainedAmount.toDecimalPlaces(2).toNumber(),
-      additionalPaymentRequired: amountDue.greaterThan(0),
+      priceDifference:
+        difference
+          .toDecimalPlaces(2)
+          .toNumber(),
+
+      amountDue:
+        amountDue
+          .toDecimalPlaces(2)
+          .toNumber(),
+
+      retainedAmount:
+        retainedAmount
+          .toDecimalPlaces(2)
+          .toNumber(),
+
+      additionalPaymentRequired:
+        amountDue.greaterThan(0),
     };
   }
 
@@ -263,29 +536,37 @@ export class ReservationPricingService {
     checkInDate: Date,
     checkOutDate: Date,
   ): Promise<RoomTypeWithRates> {
-    const roomType = await this.prisma.roomType.findUnique({
-      where: {
-        id: roomTypeId,
-      },
-      include: {
-        ratePeriods: {
-          where: {
-            isActive: true,
-            startDate: {
-              lt: checkOutDate,
+    const roomType =
+      await this.prisma.roomType.findUnique({
+        where: {
+          id: roomTypeId,
+        },
+
+        include: {
+          ratePeriods: {
+            where: {
+              isActive: true,
+
+              startDate: {
+                lt: checkOutDate,
+              },
+
+              endDate: {
+                gt: checkInDate,
+              },
             },
-            endDate: {
-              gt: checkInDate,
+
+            orderBy: {
+              startDate: 'asc',
             },
-          },
-          orderBy: {
-            startDate: 'asc',
           },
         },
-      },
-    });
+      });
 
-    if (!roomType || !roomType.isActive) {
+    if (
+      !roomType ||
+      !roomType.isActive
+    ) {
       throw new NotFoundException(
         'Tipul de apartament nu a fost găsit sau este inactiv.',
       );
@@ -298,62 +579,123 @@ export class ReservationPricingService {
     stayDates: Date[],
     roomType: RoomTypeWithRates,
   ): PricingNightRate[] {
-    return stayDates.map((date) => {
-      const isWeekend = this.isWeekendNight(date);
+    return stayDates.map(
+      (date) => {
+        const isWeekend =
+          this.isWeekendNight(
+            date,
+          );
 
-      const applicableRatePeriod = roomType.ratePeriods.find(
-        (period) =>
-          period.startDate.getTime() <= date.getTime() &&
-          period.endDate.getTime() > date.getTime(),
-      );
+        const applicableRatePeriod =
+          roomType.ratePeriods.find(
+            (period) =>
+              period.startDate.getTime() <=
+                date.getTime() &&
+              period.endDate.getTime() >
+                date.getTime(),
+          );
 
-      if (applicableRatePeriod) {
-        const price = isWeekend
-          ? applicableRatePeriod.weekendPrice
-          : applicableRatePeriod.weekdayPrice;
+        if (
+          applicableRatePeriod
+        ) {
+          const price =
+            isWeekend
+              ? applicableRatePeriod
+                  .weekendPrice
+              : applicableRatePeriod
+                  .weekdayPrice;
 
-        const originalPrice = isWeekend
-          ? applicableRatePeriod.originalWeekendPrice
-          : applicableRatePeriod.originalWeekdayPrice;
+          const originalPrice =
+            isWeekend
+              ? applicableRatePeriod
+                  .originalWeekendPrice
+              : applicableRatePeriod
+                  .originalWeekdayPrice;
+
+          return {
+            date:
+              this.formatDate(
+                date,
+              ),
+
+            rateType:
+              isWeekend
+                ? 'WEEKEND'
+                : 'WEEKDAY',
+
+            price:
+              price.toNumber(),
+
+            originalPrice:
+              originalPrice?.toNumber() ??
+              null,
+
+            isPromotion:
+              applicableRatePeriod
+                .isPromotion,
+
+            promotionTitleRo:
+              applicableRatePeriod
+                .titleRo,
+
+            promotionTitleEn:
+              applicableRatePeriod
+                .titleEn,
+          };
+        }
+
+        const basePrice =
+          isWeekend
+            ? roomType.weekendBasePrice
+            : roomType.weekdayBasePrice;
 
         return {
-          date: this.formatDate(date),
-          rateType: isWeekend ? 'WEEKEND' : 'WEEKDAY',
-          price: price.toNumber(),
-          originalPrice: originalPrice?.toNumber() ?? null,
-          isPromotion: applicableRatePeriod.isPromotion,
-          promotionTitleRo: applicableRatePeriod.titleRo,
-          promotionTitleEn: applicableRatePeriod.titleEn,
+          date:
+            this.formatDate(
+              date,
+            ),
+
+          rateType:
+            isWeekend
+              ? 'WEEKEND'
+              : 'WEEKDAY',
+
+          price:
+            basePrice.toNumber(),
+
+          originalPrice:
+            null,
+
+          isPromotion:
+            false,
+
+          promotionTitleRo:
+            null,
+
+          promotionTitleEn:
+            null,
         };
-      }
-
-      const basePrice = isWeekend
-        ? roomType.weekendBasePrice
-        : roomType.weekdayBasePrice;
-
-      return {
-        date: this.formatDate(date),
-        rateType: isWeekend ? 'WEEKEND' : 'WEEKDAY',
-        price: basePrice.toNumber(),
-        originalPrice: null,
-        isPromotion: false,
-        promotionTitleRo: null,
-        promotionTitleEn: null,
-      };
-    });
+      },
+    );
   }
 
   private calculateAveragePrice(
     rates: PricingNightRate[],
   ): number {
-    if (rates.length === 0) {
+    if (
+      rates.length === 0
+    ) {
       return 0;
     }
 
-    const total = rates.reduce(
-      (sum, rate) => sum.plus(rate.price),
-      new Prisma.Decimal(0),
-    );
+    const total =
+      rates.reduce(
+        (sum, rate) =>
+          sum.plus(
+            rate.price,
+          ),
+        new Prisma.Decimal(0),
+      );
 
     return total
       .div(rates.length)
@@ -364,13 +706,60 @@ export class ReservationPricingService {
   private ensureUniqueRoomTypes(
     rooms: RoomPricingSelection[],
   ): void {
-    const roomTypeIds = rooms.map((room) => room.roomTypeId);
-    const uniqueRoomTypeIds = new Set(roomTypeIds);
+    const roomTypeIds =
+      rooms.map(
+        (room) =>
+          room.roomTypeId,
+      );
 
-    if (uniqueRoomTypeIds.size !== roomTypeIds.length) {
+    const uniqueRoomTypeIds =
+      new Set(
+        roomTypeIds,
+      );
+
+    if (
+      uniqueRoomTypeIds.size !==
+      roomTypeIds.length
+    ) {
       throw new BadRequestException(
         'Același tip de apartament nu poate apărea de mai multe ori în selecție.',
       );
+    }
+  }
+
+  private validateExtraAdultQuantity(
+    extraAdultQuantity: number,
+    roomQuantity: number,
+  ): void {
+    if (
+      !Number.isInteger(
+        extraAdultQuantity,
+      ) ||
+      extraAdultQuantity < 0
+    ) {
+      throw new BadRequestException({
+        code:
+          'INVALID_EXTRA_ADULT_QUANTITY',
+
+        message:
+          'Numărul apartamentelor cu adult suplimentar trebuie să fie un număr întreg pozitiv sau zero.',
+      });
+    }
+
+    if (
+      extraAdultQuantity >
+      roomQuantity
+    ) {
+      throw new BadRequestException({
+        code:
+          'EXTRA_ADULT_QUANTITY_EXCEEDS_ROOM_QUANTITY',
+
+        message:
+          'Numărul apartamentelor cu adult suplimentar nu poate depăși cantitatea totală de apartamente selectate.',
+
+        roomQuantity,
+        extraAdultQuantity,
+      });
     }
   }
 
@@ -378,25 +767,44 @@ export class ReservationPricingService {
     amount: number,
     fieldName: string,
   ): void {
-    if (!Number.isFinite(amount) || amount < 0) {
+    if (
+      !Number.isFinite(
+        amount,
+      ) ||
+      amount < 0
+    ) {
       throw new BadRequestException(
         `${fieldName} trebuie să fie o valoare pozitivă validă.`,
       );
     }
   }
 
-  private parseDate(value: string, fieldName: string): Date {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+  private parseDate(
+    value: string,
+    fieldName: string,
+  ): Date {
+    if (
+      !/^\d{4}-\d{2}-\d{2}$/.test(
+        value,
+      )
+    ) {
       throw new BadRequestException(
         `${fieldName} trebuie să aibă formatul YYYY-MM-DD.`,
       );
     }
 
-    const date = new Date(`${value}T00:00:00.000Z`);
+    const date =
+      new Date(
+        `${value}T00:00:00.000Z`,
+      );
 
     if (
-      Number.isNaN(date.getTime()) ||
-      this.formatDate(date) !== value
+      Number.isNaN(
+        date.getTime(),
+      ) ||
+      this.formatDate(
+        date,
+      ) !== value
     ) {
       throw new BadRequestException(
         `${fieldName} nu reprezintă o dată validă.`,
@@ -410,7 +818,10 @@ export class ReservationPricingService {
     checkInDate: Date,
     checkOutDate: Date,
   ): void {
-    if (checkOutDate <= checkInDate) {
+    if (
+      checkOutDate <=
+      checkInDate
+    ) {
       throw new BadRequestException(
         'Data de check-out trebuie să fie după data de check-in.',
       );
@@ -422,23 +833,48 @@ export class ReservationPricingService {
     checkOutDate: Date,
   ): Date[] {
     const dates: Date[] = [];
-    const currentDate = new Date(checkInDate);
 
-    while (currentDate < checkOutDate) {
-      dates.push(new Date(currentDate));
-      currentDate.setUTCDate(currentDate.getUTCDate() + 1);
+    const currentDate =
+      new Date(
+        checkInDate,
+      );
+
+    while (
+      currentDate <
+      checkOutDate
+    ) {
+      dates.push(
+        new Date(
+          currentDate,
+        ),
+      );
+
+      currentDate.setUTCDate(
+        currentDate.getUTCDate() +
+          1,
+      );
     }
 
     return dates;
   }
 
-  private isWeekendNight(date: Date): boolean {
-    const day = date.getUTCDay();
+  private isWeekendNight(
+    date: Date,
+  ): boolean {
+    const day =
+      date.getUTCDay();
 
-    return day === 5 || day === 6;
+    return (
+      day === 5 ||
+      day === 6
+    );
   }
 
-  private formatDate(date: Date): string {
-    return date.toISOString().slice(0, 10);
+  private formatDate(
+    date: Date,
+  ): string {
+    return date
+      .toISOString()
+      .slice(0, 10);
   }
 }

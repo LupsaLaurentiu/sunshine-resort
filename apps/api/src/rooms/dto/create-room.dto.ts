@@ -32,5 +32,9 @@ export class CreateRoomDto {
 
   @IsOptional()
   @IsBoolean()
+  allowsExtraAdult?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
   isActive?: boolean;
 }

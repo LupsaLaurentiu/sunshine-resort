@@ -295,6 +295,9 @@ export class CalendarService {
               adults:
                 reservationRoom.adults,
 
+              hasExtraAdult:
+                reservationRoom.hasExtraAdult,
+
               source:
                 reservation.source,
 
@@ -342,6 +345,9 @@ export class CalendarService {
 
             adults:
               reservationRoom.adults,
+
+            hasExtraAdult:
+              reservationRoom.hasExtraAdult,
 
             source:
               reservation.source,
@@ -685,6 +691,9 @@ export class CalendarService {
 
           adults:
             reservationRoom.adults,
+
+          hasExtraAdult:
+            reservationRoom.hasExtraAdult,
 
           source:
             reservationRoom.source,

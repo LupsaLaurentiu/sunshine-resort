@@ -309,11 +309,13 @@ export class ReservationChangeService {
     reservationRooms: Array<{
       roomTypeId: string;
       adults: number;
+      hasExtraAdult: boolean;
     }>,
   ): Array<{
     roomTypeId: string;
     quantity: number;
     adultsPerRoom: number;
+    extraAdultQuantity: number;
   }> {
     const selections = new Map<
       string,
@@ -321,30 +323,29 @@ export class ReservationChangeService {
         roomTypeId: string;
         quantity: number;
         adultsPerRoom: number;
+        extraAdultQuantity: number;
       }
     >();
 
     for (const reservationRoom of reservationRooms) {
-      const existing = selections.get(
-        reservationRoom.roomTypeId,
-      );
+      const standardAdults =
+        reservationRoom.adults -
+        (reservationRoom.hasExtraAdult ? 1 : 0);
+
+      const existing = selections.get(reservationRoom.roomTypeId);
 
       if (existing) {
         existing.quantity += 1;
-
-        /*
-         * În MVP presupunem aceeași ocupare pentru camerele
-         * din același RoomType.
-         */
-        existing.adultsPerRoom = Math.max(
-          existing.adultsPerRoom,
-          reservationRoom.adults,
-        );
+        existing.adultsPerRoom = Math.max(existing.adultsPerRoom, standardAdults);
+        if (reservationRoom.hasExtraAdult) {
+          existing.extraAdultQuantity += 1;
+        }
       } else {
-        selections.set(reservationRoom.roomTypeId, {
+        selections.set(reservationRoom.roomTypeId,{
           roomTypeId: reservationRoom.roomTypeId,
-          quantity: 1,
-          adultsPerRoom: reservationRoom.adults,
+          quantity:1,
+          adultsPerRoom: standardAdults,
+          extraAdultQuantity: reservationRoom.hasExtraAdult ? 1 : 0,
         });
       }
     }
@@ -375,6 +376,7 @@ export class ReservationChangeService {
               },
               select: {
                 id: true,
+                allowsExtraAdult: true,
               },
             },
           },

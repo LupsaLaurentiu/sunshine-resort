@@ -39,8 +39,7 @@ export class ReservationsService {
   async create(
     dto: CreateReservationDto,
   ): Promise<CreateReservationResponse> {
-    const availability =
-      await this.availabilityService.validateReservationRequest({
+    await this.availabilityService.validateReservationRequest({
         checkIn: dto.checkIn,
         checkOut: dto.checkOut,
         rooms: dto.rooms,
@@ -53,11 +52,21 @@ export class ReservationsService {
         rooms: dto.rooms.map((room) => ({
           roomTypeId: room.roomTypeId,
           quantity: room.quantity,
+          extraAdultQuantity:
+            room.extraAdultQuantity ?? 0,
         })),
       });
 
     const checkInDate = this.parseDate(dto.checkIn);
     const checkOutDate = this.parseDate(dto.checkOut);
+
+    const totalAdults = dto.rooms.reduce(
+      (total, room) =>
+        total +
+        room.quantity * room.adultsPerRoom +
+        (room.extraAdultQuantity ?? 0),
+      0,
+    );
 
     const statusUpdate =
       this.statusService.buildInitialPendingStatus();
@@ -95,7 +104,7 @@ export class ReservationsService {
                 checkInTime: '14:00',
                 checkOutTime: '10:00',
 
-                adults: availability.totalAdults,
+                adults: totalAdults,
                 nights: pricing.nights,
 
                 subtotalPrice: pricing.subtotalPrice,
@@ -135,36 +144,58 @@ export class ReservationsService {
                 {
                   length: pricedRoom.quantity,
                 },
-                () => ({
-                  reservationId:
-                    createdReservation.id,
+                (_, index) => {
+                  const hasExtraAdult =
+                    index <
+                    pricedRoom.extraAdultQuantity;
 
-                  roomTypeId:
-                    pricedRoom.roomTypeId,
+                  const extraAdultSubtotal =
+                    hasExtraAdult
+                      ? pricedRoom.extraAdultPricePerUnit
+                      : 0;
 
-                  roomId: null,
+                  return {
+                    reservationId:
+                      createdReservation.id,
 
-                  adults:
-                    selectedRoom.adultsPerRoom,
+                    roomTypeId:
+                      pricedRoom.roomTypeId,
 
-                  weekdayNights:
-                    pricedRoom.weekdayNights,
+                    roomId: null,
 
-                  weekendNights:
-                    pricedRoom.weekendNights,
+                    adults:
+                      selectedRoom.adultsPerRoom +
+                      (hasExtraAdult ? 1 : 0),
 
-                  nights:
-                    pricedRoom.nights,
+                    hasExtraAdult,
 
-                  weekdayPricePerNight:
-                    pricedRoom.weekdayAveragePrice,
+                    weekdayNights:
+                      pricedRoom.weekdayNights,
 
-                  weekendPricePerNight:
-                    pricedRoom.weekendAveragePrice,
+                    weekendNights:
+                      pricedRoom.weekendNights,
 
-                  subtotal:
-                    pricedRoom.pricePerUnit,
-                }),
+                    nights:
+                      pricedRoom.nights,
+
+                    weekdayPricePerNight:
+                      pricedRoom.weekdayAveragePrice,
+
+                    weekendPricePerNight:
+                      pricedRoom.weekendAveragePrice,
+
+                    extraAdultPricePerNight:
+                      hasExtraAdult
+                        ? pricedRoom.extraAdultPricePerNight
+                        : 0,
+
+                    extraAdultSubtotal,
+
+                    subtotal:
+                      pricedRoom.pricePerUnit +
+                      extraAdultSubtotal,
+                  };
+                },
               );
             });
 
@@ -556,6 +587,12 @@ export class ReservationsService {
         weekendPricePerNight:
           room.weekendPricePerNight.toNumber(),
 
+        extraAdultPricePerNight:
+          room.extraAdultPricePerNight.toNumber(),
+
+        extraAdultSubtotal:
+          room.extraAdultSubtotal.toNumber(),
+
         subtotal: room.subtotal.toNumber(),
       })),
 
@@ -605,6 +642,7 @@ export class ReservationsService {
             },
             select: {
               id: true,
+              allowsExtraAdult: true,
             },
           },
         },
@@ -619,10 +657,46 @@ export class ReservationsService {
         });
       }
 
-      if (selection.adultsPerRoom > roomType.maxAdults) {
+      const extraAdultQuantity =
+        selection.extraAdultQuantity ?? 0;
+
+      if (
+        extraAdultQuantity >
+        selection.quantity
+      ) {
+        throw new ConflictException({
+          code:
+            'EXTRA_ADULT_QUANTITY_EXCEEDS_ROOM_QUANTITY',
+          message:
+            'Numărul apartamentelor cu adult suplimentar nu poate depăși cantitatea totală selectată.',
+          roomTypeId: roomType.id,
+          requestedUnits:
+            selection.quantity,
+          requestedExtraAdultUnits:
+            extraAdultQuantity,
+        });
+      }
+
+      if (
+        selection.adultsPerRoom >
+        roomType.maxAdults
+      ) {
         throw new ConflictException({
           code: 'ROOM_CAPACITY_EXCEEDED',
-          message: `Capacitatea maximă pentru ${roomType.nameRo} este de ${roomType.maxAdults} adulți.`,
+          message: `Capacitatea standard maximă pentru ${roomType.nameRo} este de ${roomType.maxAdults} adulți. Adultul suplimentar trebuie selectat separat.`,
+          roomTypeId: roomType.id,
+        });
+      }
+
+      if (
+        extraAdultQuantity > 0 &&
+        roomType.extraAdultPrice.lessThanOrEqualTo(0)
+      ) {
+        throw new ConflictException({
+          code:
+            'EXTRA_ADULT_PRICE_NOT_CONFIGURED',
+          message:
+            `Tariful pentru adult suplimentar nu este configurat pentru ${roomType.nameRo}.`,
           roomTypeId: roomType.id,
         });
       }
@@ -656,7 +730,7 @@ export class ReservationsService {
           },
         }),
 
-        transaction.reservationRoom.count({
+        transaction.reservationRoom.findMany({
           where: {
             roomTypeId: selection.roomTypeId,
             roomId: null,
@@ -671,6 +745,9 @@ export class ReservationsService {
                 gt: checkInDate,
               },
             },
+          },
+          select: {
+            hasExtraAdult: true,
           },
         }),
 
@@ -741,20 +818,89 @@ export class ReservationsService {
         );
       }
 
+      const physicallyAvailableRooms =
+        roomType.rooms.filter(
+          (room) =>
+            !unavailablePhysicalRoomIds.has(
+              room.id,
+            ),
+        );
+
+      const unassignedExtraAdultHolds =
+        unassignedReservationRooms.filter(
+          (reservationRoom) =>
+            reservationRoom.hasExtraAdult,
+        ).length;
+
+      const unassignedStandardHolds =
+        unassignedReservationRooms.length -
+        unassignedExtraAdultHolds;
+
+      const physicallyAvailableExtraAdultUnits =
+        physicallyAvailableRooms.filter(
+          (room) =>
+            room.allowsExtraAdult,
+        ).length;
+
+      const physicallyAvailableStandardOnlyUnits =
+        physicallyAvailableRooms.length -
+        physicallyAvailableExtraAdultUnits;
+
       const availableUnits = Math.max(
         0,
-        roomType.rooms.length -
-          unavailablePhysicalRoomIds.size -
-          unassignedReservationRooms,
+        physicallyAvailableRooms.length -
+          unassignedReservationRooms.length,
       );
 
-      if (selection.quantity > availableUnits) {
+      if (
+        selection.quantity >
+        availableUnits
+      ) {
         throw new ConflictException({
-          code: 'INSUFFICIENT_AVAILABILITY',
+          code:
+            'INSUFFICIENT_AVAILABILITY',
           message: `Pentru ${roomType.nameRo} mai sunt disponibile doar ${availableUnits} unități.`,
           roomTypeId: roomType.id,
-          requestedUnits: selection.quantity,
+          requestedUnits:
+            selection.quantity,
           availableUnits,
+        });
+      }
+
+      const extraAdultUnitsAfterRequiredHolds =
+        Math.max(
+          0,
+          physicallyAvailableExtraAdultUnits -
+            unassignedExtraAdultHolds,
+        );
+
+      const standardHoldsUsingExtraAdultRooms =
+        Math.max(
+          0,
+          unassignedStandardHolds -
+            physicallyAvailableStandardOnlyUnits,
+        );
+
+      const availableExtraAdultUnits =
+        Math.max(
+          0,
+          extraAdultUnitsAfterRequiredHolds -
+            standardHoldsUsingExtraAdultRooms,
+        );
+
+      if (
+        extraAdultQuantity >
+        availableExtraAdultUnits
+      ) {
+        throw new ConflictException({
+          code:
+            'INSUFFICIENT_EXTRA_ADULT_AVAILABILITY',
+          message:
+            `Pentru ${roomType.nameRo} mai sunt disponibile doar ${availableExtraAdultUnits} unități care permit un adult suplimentar.`,
+          roomTypeId: roomType.id,
+          requestedExtraAdultUnits:
+            extraAdultQuantity,
+          availableExtraAdultUnits,
         });
       }
     }

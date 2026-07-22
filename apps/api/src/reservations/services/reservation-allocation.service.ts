@@ -34,6 +34,8 @@ export type AllocatedReservationRoom = {
   roomId: string;
   roomCode: string;
   roomName: string;
+  hasExtraAdult: boolean;
+  allowsExtraAdult: boolean;
 };
 
 export type ReservationAllocationResult = {
@@ -181,28 +183,17 @@ export class ReservationAllocationService {
           availableRooms.length,
       });
 
-      for (
-        let index = 0;
-        index < reservationRooms.length;
-        index += 1
-      ) {
-        const reservationRoom =
-          reservationRooms[index];
+      const allocationPairs =
+        this.buildAllocationPairs(
+          roomTypeId,
+          reservationRooms,
+          availableRooms,
+        );
 
-        const physicalRoom =
-          availableRooms[index];
-
-        if (
-          !reservationRoom ||
-          !physicalRoom
-        ) {
-          throw new ConflictException({
-            code: 'ROOM_ALLOCATION_FAILED',
-            message:
-              'Alocarea apartamentelor nu a putut fi finalizată.',
-          });
-        }
-
+      for (const {
+        reservationRoom,
+        physicalRoom,
+      } of allocationPairs) {
         await transaction.reservationRoom.update({
           where: {
             id: reservationRoom.id,
@@ -222,6 +213,7 @@ export class ReservationAllocationService {
           this.mapAllocatedRoom(
             reservationRoom.id,
             roomTypeId,
+            reservationRoom.hasExtraAdult,
             physicalRoom,
           ),
         );
@@ -330,36 +322,21 @@ export class ReservationAllocationService {
         );
 
       /*
-       * Pentru calendar nu aruncăm eroare dacă nu mai există
-       * suficiente camere concrete.
-       *
-       * Returnăm doar predicțiile posibile, iar rezervările
-       * rămase pot fi semnalate separat ca nepoziționate.
+       * Pentru calendar nu aruncăm eroare când nu pot fi
+       * poziționate toate unitățile. Construim doar perechile
+       * compatibile, respectând însă obligatoriu regula
+       * adultului suplimentar.
        */
-      const predictableCount =
-        Math.min(
-          reservationRooms.length,
-          availableRooms.length,
+      const allocationPairs =
+        this.buildPredictionPairs(
+          reservationRooms,
+          availableRooms,
         );
 
-      for (
-        let index = 0;
-        index < predictableCount;
-        index += 1
-      ) {
-        const reservationRoom =
-          reservationRooms[index];
-
-        const physicalRoom =
-          availableRooms[index];
-
-        if (
-          !reservationRoom ||
-          !physicalRoom
-        ) {
-          continue;
-        }
-
+      for (const {
+        reservationRoom,
+        physicalRoom,
+      } of allocationPairs) {
         locallyExcludedRoomIds.add(
           physicalRoom.id,
         );
@@ -368,6 +345,7 @@ export class ReservationAllocationService {
           this.mapAllocatedRoom(
             reservationRoom.id,
             roomTypeId,
+            reservationRoom.hasExtraAdult,
             physicalRoom,
           ),
         );
@@ -489,12 +467,14 @@ export class ReservationAllocationService {
         },
       },
 
-      orderBy: {
-        code: 'asc',
-      },
-
-      take:
-        params.quantity,
+      orderBy: [
+        {
+          allowsExtraAdult: 'asc',
+        },
+        {
+          code: 'asc',
+        },
+      ],
     });
   }
 
@@ -633,6 +613,255 @@ export class ReservationAllocationService {
     return pendingByRoomType;
   }
 
+  private buildAllocationPairs(
+    roomTypeId: string,
+    reservationRooms:
+      ReservationWithRooms['rooms'],
+    availableRooms: Room[],
+  ): Array<{
+    reservationRoom:
+      ReservationWithRooms['rooms'][number];
+    physicalRoom: Room;
+  }> {
+    const extraAdultReservationRooms =
+      reservationRooms.filter(
+        (reservationRoom) =>
+          reservationRoom.hasExtraAdult,
+      );
+
+    const standardReservationRooms =
+      reservationRooms.filter(
+        (reservationRoom) =>
+          !reservationRoom.hasExtraAdult,
+      );
+
+    const extraAdultPhysicalRooms =
+      availableRooms.filter(
+        (room) =>
+          room.allowsExtraAdult,
+      );
+
+    if (
+      extraAdultPhysicalRooms.length <
+      extraAdultReservationRooms.length
+    ) {
+      throw new ConflictException({
+        code:
+          'EXTRA_ADULT_ROOM_ALLOCATION_FAILED',
+
+        message:
+          'Nu mai există suficiente apartamente concrete care permit un adult suplimentar.',
+
+        roomTypeId,
+
+        requiredExtraAdultUnits:
+          extraAdultReservationRooms.length,
+
+        availableExtraAdultUnits:
+          extraAdultPhysicalRooms.length,
+      });
+    }
+
+    const selectedExtraAdultRooms =
+      extraAdultPhysicalRooms.slice(
+        0,
+        extraAdultReservationRooms.length,
+      );
+
+    const selectedExtraAdultRoomIds =
+      new Set(
+        selectedExtraAdultRooms.map(
+          (room) =>
+            room.id,
+        ),
+      );
+
+    /*
+     * Rezervările standard folosesc cu prioritate camerele care
+     * nu permit adult suplimentar. Camerele speciale rămân astfel
+     * disponibile cât mai mult timp pentru rezervările care chiar
+     * au nevoie de ele.
+     */
+    const remainingPhysicalRooms =
+      availableRooms
+        .filter(
+          (room) =>
+            !selectedExtraAdultRoomIds.has(
+              room.id,
+            ),
+        )
+        .sort((firstRoom, secondRoom) => {
+          if (
+            firstRoom.allowsExtraAdult !==
+            secondRoom.allowsExtraAdult
+          ) {
+            return firstRoom.allowsExtraAdult
+              ? 1
+              : -1;
+          }
+
+          return firstRoom.code.localeCompare(
+            secondRoom.code,
+          );
+        });
+
+    if (
+      remainingPhysicalRooms.length <
+      standardReservationRooms.length
+    ) {
+      throw new ConflictException({
+        code:
+          'ROOM_ALLOCATION_FAILED',
+
+        message:
+          'Nu mai există suficiente apartamente concrete disponibile pentru finalizarea rezervării.',
+
+        roomTypeId,
+
+        requiredUnits:
+          reservationRooms.length,
+
+        availableUnits:
+          availableRooms.length,
+      });
+    }
+
+    return [
+      ...extraAdultReservationRooms.map(
+        (reservationRoom, index) => ({
+          reservationRoom,
+
+          physicalRoom:
+            selectedExtraAdultRooms[
+              index
+            ]!,
+        }),
+      ),
+
+      ...standardReservationRooms.map(
+        (reservationRoom, index) => ({
+          reservationRoom,
+
+          physicalRoom:
+            remainingPhysicalRooms[
+              index
+            ]!,
+        }),
+      ),
+    ];
+  }
+
+  private buildPredictionPairs(
+    reservationRooms:
+      ReservationWithRooms['rooms'],
+    availableRooms: Room[],
+  ): Array<{
+    reservationRoom:
+      ReservationWithRooms['rooms'][number];
+    physicalRoom: Room;
+  }> {
+    const extraAdultReservationRooms =
+      reservationRooms.filter(
+        (reservationRoom) =>
+          reservationRoom.hasExtraAdult,
+      );
+
+    const standardReservationRooms =
+      reservationRooms.filter(
+        (reservationRoom) =>
+          !reservationRoom.hasExtraAdult,
+      );
+
+    const extraAdultPhysicalRooms =
+      availableRooms.filter(
+        (room) =>
+          room.allowsExtraAdult,
+      );
+
+    const extraAdultPairCount =
+      Math.min(
+        extraAdultReservationRooms.length,
+        extraAdultPhysicalRooms.length,
+      );
+
+    const selectedExtraAdultRooms =
+      extraAdultPhysicalRooms.slice(
+        0,
+        extraAdultPairCount,
+      );
+
+    const selectedExtraAdultRoomIds =
+      new Set(
+        selectedExtraAdultRooms.map(
+          (room) =>
+            room.id,
+        ),
+      );
+
+    const remainingPhysicalRooms =
+      availableRooms
+        .filter(
+          (room) =>
+            !selectedExtraAdultRoomIds.has(
+              room.id,
+            ),
+        )
+        .sort((firstRoom, secondRoom) => {
+          if (
+            firstRoom.allowsExtraAdult !==
+            secondRoom.allowsExtraAdult
+          ) {
+            return firstRoom.allowsExtraAdult
+              ? 1
+              : -1;
+          }
+
+          return firstRoom.code.localeCompare(
+            secondRoom.code,
+          );
+        });
+
+    const standardPairCount =
+      Math.min(
+        standardReservationRooms.length,
+        remainingPhysicalRooms.length,
+      );
+
+    return [
+      ...extraAdultReservationRooms
+        .slice(
+          0,
+          extraAdultPairCount,
+        )
+        .map(
+          (reservationRoom, index) => ({
+            reservationRoom,
+
+            physicalRoom:
+              selectedExtraAdultRooms[
+                index
+              ]!,
+          }),
+        ),
+
+      ...standardReservationRooms
+        .slice(
+          0,
+          standardPairCount,
+        )
+        .map(
+          (reservationRoom, index) => ({
+            reservationRoom,
+
+            physicalRoom:
+              remainingPhysicalRooms[
+                index
+              ]!,
+          }),
+        ),
+    ];
+  }
+
   private ensureEnoughRoomsAvailable(params: {
     roomTypeId: string;
     requiredUnits: number;
@@ -664,9 +893,13 @@ export class ReservationAllocationService {
   private mapAllocatedRoom(
     reservationRoomId: string,
     roomTypeId: string,
+    hasExtraAdult: boolean,
     room: Pick<
       Room,
-      'id' | 'code' | 'name'
+      | 'id'
+      | 'code'
+      | 'name'
+      | 'allowsExtraAdult'
     >,
   ): AllocatedReservationRoom {
     return {
@@ -681,6 +914,11 @@ export class ReservationAllocationService {
 
       roomName:
         room.name,
+
+      hasExtraAdult,
+
+      allowsExtraAdult:
+        room.allowsExtraAdult,
     };
   }
 
@@ -691,6 +929,7 @@ export class ReservationAllocationService {
       id: string;
       roomTypeId: string;
       roomId: string;
+      hasExtraAdult: boolean;
     }>,
   ): Promise<ReservationAllocationResult> {
     if (assignments.length === 0) {
@@ -746,6 +985,7 @@ export class ReservationAllocationService {
             return this.mapAllocatedRoom(
               assignment.id,
               assignment.roomTypeId,
+              assignment.hasExtraAdult,
               room,
             );
           },
