@@ -27,10 +27,6 @@ const navigationItems: AdminNavigationItem[] = [
     label: "Tarife",
   },
   {
-    id: "promotions",
-    label: "Promoții",
-  },
-  {
     id: "blocked-periods",
     label: "Blocări",
   },

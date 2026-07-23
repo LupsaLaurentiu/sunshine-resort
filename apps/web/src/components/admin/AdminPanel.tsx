@@ -10,6 +10,7 @@ import { AdminRates } from "./rates/AdminRates";
 import { ReservationsSection } from "./reservations/ReservationsSection";
 import { RoomsSection } from "./rooms/RoomsSection";
 import { AdminEmptySection } from "./shared/AdminEmptySection";
+import { AdminBlockedPeriods } from "./blocked-periods/AdminBlockedPeriods";
 
 import { AdminHeader } from "@/components/layout/admin/AdminHeader";
 import { AdminNavigation } from "@/components/layout/admin/AdminNavigation";
@@ -33,23 +34,8 @@ function renderSection(
     case "rates":
       return <AdminRates />;
 
-    case "promotions":
-      return (
-        <AdminEmptySection
-          eyebrow="Offers"
-          title="Promoții"
-          description="Crearea și administrarea ofertelor aplicate automat rezervărilor eligibile."
-        />
-      );
-
     case "blocked-periods":
-      return (
-        <AdminEmptySection
-          eyebrow="Availability"
-          title="Blocări"
-          description="Blocarea apartamentelor pentru mentenanță, utilizare internă sau alte perioade de indisponibilitate."
-        />
-      );
+      return <AdminBlockedPeriods />;
 
     case "settings":
       return (

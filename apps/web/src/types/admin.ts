@@ -4,7 +4,6 @@ export type AdminSection =
   | "calendar"
   | "rooms"
   | "rates"
-  | "promotions"
   | "blocked-periods"
   | "settings";
 
