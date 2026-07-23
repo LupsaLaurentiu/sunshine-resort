@@ -11,6 +11,7 @@ import { ReservationsSection } from "./reservations/ReservationsSection";
 import { RoomsSection } from "./rooms/RoomsSection";
 import { AdminEmptySection } from "./shared/AdminEmptySection";
 import { AdminBlockedPeriods } from "./blocked-periods/AdminBlockedPeriods";
+import { AdminSettingsSection } from "./settings/AdminSettingsSection";
 
 import { AdminHeader } from "@/components/layout/admin/AdminHeader";
 import { AdminNavigation } from "@/components/layout/admin/AdminNavigation";
@@ -38,13 +39,7 @@ function renderSection(
       return <AdminBlockedPeriods />;
 
     case "settings":
-      return (
-        <AdminEmptySection
-          eyebrow="Configuration"
-          title="Setări"
-          description="Configurarea generală a aplicației și a integrărilor Sunshine Resort."
-        />
-      );
+      return <AdminSettingsSection />;
 
     default:
       return <AdminDashboard />;

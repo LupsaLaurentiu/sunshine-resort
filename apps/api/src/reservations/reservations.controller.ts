@@ -6,6 +6,7 @@ import {
   Patch,
   Post,
   Query,
+  StreamableFile,
   UseGuards,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -22,6 +23,7 @@ import { ReservationsService } from './reservations.service';
 import { ReservationCancellationService } from './services/reservation-cancellation.service';
 import { ReservationChangeService } from './services/reservation-change.service';
 import { ReservationCheckInService } from './services/reservation-checkin.service';
+import { ReservationExportService } from './services/reservation-export.service';
 import { ReservationManualService } from './services/reservation-manual.service';
 import { ReservationReviewService } from './services/reservation-review.service';
 
@@ -34,14 +36,20 @@ export class ReservationsController {
     private readonly reservationManualService: ReservationManualService,
     private readonly reservationChangeService: ReservationChangeService,
     private readonly reservationCheckInService: ReservationCheckInService,
+    private readonly reservationExportService: ReservationExportService,
   ) {}
 
   /**
    * Cerere publică de rezervare.
    */
   @Post()
-  create(@Body() dto: CreateReservationDto) {
-    return this.reservationsService.create(dto);
+  create(
+    @Body()
+    dto: CreateReservationDto,
+  ) {
+    return this.reservationsService.create(
+      dto,
+    );
   }
 
   /**
@@ -50,8 +58,11 @@ export class ReservationsController {
   @UseGuards(JwtAuthGuard)
   @Post('manual')
   createManual(
-    @Body() dto: CreateManualReservationDto,
-    @CurrentAdmin() admin: CurrentAdminData,
+    @Body()
+    dto: CreateManualReservationDto,
+
+    @CurrentAdmin()
+    admin: CurrentAdminData,
   ) {
     return this.reservationManualService.create(
       dto,
@@ -60,14 +71,37 @@ export class ReservationsController {
   }
 
   /**
+   * Export Excel pentru rezervări.
+   *
+   * Ruta trebuie declarată înainte de @Get(':id'),
+   * altfel "export" poate fi interpretat drept ID.
+   */
+  @UseGuards(JwtAuthGuard)
+  @Get('export')
+  async exportReservations(
+    @Query()
+    query: FindReservationsQueryDto,
+  ): Promise<StreamableFile> {
+    const result =
+      await this.reservationExportService.exportReservations(
+        query,
+      );
+
+    return result.file;
+  }
+
+  /**
    * Listarea rezervărilor pentru admin.
    */
   @UseGuards(JwtAuthGuard)
   @Get()
   findAll(
-    @Query() query: FindReservationsQueryDto,
+    @Query()
+    query: FindReservationsQueryDto,
   ) {
-    return this.reservationsService.findAll(query);
+    return this.reservationsService.findAll(
+      query,
+    );
   }
 
   /**
@@ -76,8 +110,11 @@ export class ReservationsController {
   @UseGuards(JwtAuthGuard)
   @Post(':id/change')
   createChangeRequest(
-    @Param('id') id: string,
-    @Body() dto: CreateReservationChangeDto,
+    @Param('id')
+    id: string,
+
+    @Body()
+    dto: CreateReservationChangeDto,
   ) {
     return this.reservationChangeService.create(
       id,
@@ -91,8 +128,11 @@ export class ReservationsController {
   @UseGuards(JwtAuthGuard)
   @Patch(':id/check-in')
   checkIn(
-    @Param('id') id: string,
-    @CurrentAdmin() admin: CurrentAdminData,
+    @Param('id')
+    id: string,
+
+    @CurrentAdmin()
+    admin: CurrentAdminData,
   ) {
     return this.reservationCheckInService.checkIn(
       id,
@@ -106,8 +146,11 @@ export class ReservationsController {
   @UseGuards(JwtAuthGuard)
   @Patch(':id/check-out')
   checkOut(
-    @Param('id') id: string,
-    @CurrentAdmin() admin: CurrentAdminData,
+    @Param('id')
+    id: string,
+
+    @CurrentAdmin()
+    admin: CurrentAdminData,
   ) {
     return this.reservationCheckInService.checkOut(
       id,
@@ -121,9 +164,14 @@ export class ReservationsController {
   @UseGuards(JwtAuthGuard)
   @Patch(':id/approve')
   approve(
-    @Param('id') id: string,
-    @Body() dto: ApproveReservationDto,
-    @CurrentAdmin() admin: CurrentAdminData,
+    @Param('id')
+    id: string,
+
+    @Body()
+    dto: ApproveReservationDto,
+
+    @CurrentAdmin()
+    admin: CurrentAdminData,
   ) {
     return this.reservationReviewService.approve(
       id,
@@ -138,9 +186,14 @@ export class ReservationsController {
   @UseGuards(JwtAuthGuard)
   @Patch(':id/reject')
   reject(
-    @Param('id') id: string,
-    @Body() dto: RejectReservationDto,
-    @CurrentAdmin() admin: CurrentAdminData,
+    @Param('id')
+    id: string,
+
+    @Body()
+    dto: RejectReservationDto,
+
+    @CurrentAdmin()
+    admin: CurrentAdminData,
   ) {
     return this.reservationReviewService.reject(
       id,
@@ -155,9 +208,14 @@ export class ReservationsController {
   @UseGuards(JwtAuthGuard)
   @Patch(':id/cancel')
   cancel(
-    @Param('id') id: string,
-    @Body() dto: CancelReservationDto,
-    @CurrentAdmin() admin: CurrentAdminData,
+    @Param('id')
+    id: string,
+
+    @Body()
+    dto: CancelReservationDto,
+
+    @CurrentAdmin()
+    admin: CurrentAdminData,
   ) {
     return this.reservationCancellationService.cancel(
       id,
@@ -174,7 +232,12 @@ export class ReservationsController {
    */
   @UseGuards(JwtAuthGuard)
   @Get(':id')
-  findById(@Param('id') id: string) {
-    return this.reservationsService.findById(id);
+  findById(
+    @Param('id')
+    id: string,
+  ) {
+    return this.reservationsService.findById(
+      id,
+    );
   }
 }
