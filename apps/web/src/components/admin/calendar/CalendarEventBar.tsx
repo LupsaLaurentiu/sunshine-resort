@@ -5,12 +5,14 @@ import Link from "next/link";
 import type {
   CalendarEvent,
 } from "@/types/admin-calendar";
+
 import type {
   ReservationStatus,
 } from "@/types/reservation";
 
 type CalendarEventBarProps = {
   event: CalendarEvent;
+  className?: string;
 };
 
 const STATUS_CLASSES: Record<
@@ -42,8 +44,22 @@ const STATUS_CLASSES: Record<
     "bg-neutral-700",
 };
 
+const BASE_EVENT_CLASSES =
+  "flex min-h-0 items-center overflow-hidden rounded-md px-3 text-xs font-medium text-white shadow transition";
+
+function joinClasses(
+  ...classes: Array<
+    string | undefined | false
+  >
+): string {
+  return classes
+    .filter(Boolean)
+    .join(" ");
+}
+
 export function CalendarEventBar({
   event,
+  className,
 }: CalendarEventBarProps) {
   switch (event.type) {
     case "RESERVATION":
@@ -51,9 +67,11 @@ export function CalendarEventBar({
         <Link
           href={`/admin/reservation/${event.reservationId}`}
           title={`${event.guestName} · ${event.start} – ${event.end}`}
-          className={`group flex h-8 items-center overflow-hidden rounded-md px-3 text-xs font-medium text-white shadow transition ${
-            STATUS_CLASSES[event.status]
-          }`}
+          className={joinClasses(
+            BASE_EVENT_CLASSES,
+            STATUS_CLASSES[event.status],
+            className,
+          )}
         >
           <span className="truncate">
             {event.guestName}
@@ -65,7 +83,11 @@ export function CalendarEventBar({
       return (
         <div
           title={event.reason}
-          className="flex h-8 items-center overflow-hidden rounded-md bg-rose-500/90 px-3 text-xs font-medium text-white"
+          className={joinClasses(
+            BASE_EVENT_CLASSES,
+            "bg-rose-500/90",
+            className,
+          )}
         >
           <span className="truncate">
             {event.reason}
@@ -77,7 +99,11 @@ export function CalendarEventBar({
       return (
         <div
           title={`Eveniment iCal · ${event.start} – ${event.end}`}
-          className="flex h-8 items-center overflow-hidden rounded-md bg-violet-500/90 px-3 text-xs font-medium text-white"
+          className={joinClasses(
+            BASE_EVENT_CLASSES,
+            "bg-violet-500/90",
+            className,
+          )}
         >
           <span className="truncate">
             iCal
@@ -86,7 +112,8 @@ export function CalendarEventBar({
       );
 
     default: {
-      const exhaustiveCheck: never = event;
+      const exhaustiveCheck: never =
+        event;
 
       return exhaustiveCheck;
     }

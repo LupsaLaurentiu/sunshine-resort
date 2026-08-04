@@ -18,12 +18,15 @@ type CalendarGridProps = {
   dayWidth?: number;
 };
 
+const ROOM_COLUMN_WIDTH = 180;
+const HEADER_HEIGHT = 62;
+
 export function CalendarGrid({
   rooms,
   days,
   events,
   range,
-  dayWidth = 72,
+  dayWidth = 68,
 }: CalendarGridProps) {
   const timelineWidth =
     days.length * dayWidth;
@@ -35,17 +38,30 @@ export function CalendarGrid({
           className="min-w-max"
           style={{
             width:
-              240 + timelineWidth,
+              ROOM_COLUMN_WIDTH +
+              timelineWidth,
           }}
         >
-          <div className="grid grid-cols-[240px_auto] border-b border-white/10">
-            <div className="sticky left-0 z-30 flex h-[76px] items-center border-r border-white/10 bg-[#0b0b0b] px-5">
+          <div
+            className="grid border-b border-white/10"
+            style={{
+              gridTemplateColumns:
+                `${ROOM_COLUMN_WIDTH}px auto`,
+            }}
+          >
+            <div
+              className="sticky left-0 z-30 flex items-center border-r border-white/10 bg-[#0b0b0b] px-5"
+              style={{
+                height:
+                  HEADER_HEIGHT,
+              }}
+            >
               <div>
-                <p className="text-[9px] uppercase tracking-[0.28em] text-white/30">
+                <p className="text-[8px] uppercase tracking-[0.28em] text-white/30">
                   Inventar
                 </p>
 
-                <p className="mt-2 text-sm font-medium text-white/75">
+                <p className="mt-1.5 text-sm font-medium text-white/75">
                   Apartamente
                 </p>
               </div>
@@ -54,14 +70,15 @@ export function CalendarGrid({
             <div
               className="grid"
               style={{
-                gridTemplateColumns: `repeat(${days.length}, ${dayWidth}px)`,
+                gridTemplateColumns:
+                  `repeat(${days.length}, ${dayWidth}px)`,
               }}
             >
               {days.map((day) => (
                 <div
                   key={day.date}
                   className={[
-                    "flex h-[76px] flex-col items-center justify-center border-r border-white/10 last:border-r-0",
+                    "flex flex-col items-center justify-center border-r border-white/10 last:border-r-0",
                     day.isWeekend
                       ? "bg-white/[0.02]"
                       : "",
@@ -74,14 +91,18 @@ export function CalendarGrid({
                   ]
                     .filter(Boolean)
                     .join(" ")}
+                  style={{
+                    height:
+                      HEADER_HEIGHT,
+                  }}
                 >
-                  <span className="text-[9px] uppercase tracking-[0.22em] text-white/30">
+                  <span className="text-[8px] uppercase tracking-[0.2em] text-white/30">
                     {day.weekdayLabel}
                   </span>
 
                   <span
                     className={[
-                      "mt-2 flex h-8 w-8 items-center justify-center text-sm",
+                      "mt-1.5 flex h-7 w-7 items-center justify-center text-xs",
                       day.isToday
                         ? "bg-gold font-semibold text-black"
                         : "text-white/75",
@@ -97,7 +118,7 @@ export function CalendarGrid({
           </div>
 
           {rooms.length === 0 ? (
-            <div className="px-8 py-20 text-center">
+            <div className="px-8 py-16 text-center">
               <p className="heading text-3xl font-light text-white/60">
                 Nu există apartamente active.
               </p>
@@ -115,6 +136,9 @@ export function CalendarGrid({
                 events={events}
                 range={range}
                 dayWidth={dayWidth}
+                roomColumnWidth={
+                  ROOM_COLUMN_WIDTH
+                }
               />
             ))
           )}

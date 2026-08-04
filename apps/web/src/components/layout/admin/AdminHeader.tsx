@@ -30,6 +30,9 @@ export function AdminHeader() {
             height={54}
             priority
             className="h-auto w-[72px]"
+            style={{
+              filter: "brightness(0) invert(1)",
+            }}
           />
 
           <div>

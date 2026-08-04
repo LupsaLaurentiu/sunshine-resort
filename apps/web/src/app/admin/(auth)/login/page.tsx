@@ -79,7 +79,7 @@ export default function AdminLoginPage() {
               width={150}
               height={90}
               priority
-              className="mx-auto h-auto w-[135px]"
+              className="mx-auto h-auto w-[135px] brightness-0 invert"
             />
 
             <p className="mt-8 text-[10px] uppercase tracking-[0.45em] text-gold">

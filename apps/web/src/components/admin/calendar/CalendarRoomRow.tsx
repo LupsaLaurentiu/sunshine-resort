@@ -19,7 +19,10 @@ type CalendarRoomRowProps = {
   events: CalendarEvent[];
   range: CalendarDateRange;
   dayWidth: number;
+  roomColumnWidth?: number;
 };
+
+const ROW_HEIGHT = 72;
 
 export function CalendarRoomRow({
   room,
@@ -27,6 +30,7 @@ export function CalendarRoomRow({
   events,
   range,
   dayWidth,
+  roomColumnWidth = 190,
 }: CalendarRoomRowProps) {
   const roomEvents = getRoomEvents(
     events,
@@ -34,38 +38,45 @@ export function CalendarRoomRow({
   );
 
   return (
-    <div className="grid min-w-max grid-cols-[240px_auto] border-b border-white/10 last:border-b-0">
-      <div className="sticky left-0 z-20 flex min-h-[92px] items-center border-r border-white/10 bg-[#0b0b0b] px-5">
+    <div
+      className="grid min-w-max border-b border-white/10 last:border-b-0"
+      style={{
+        gridTemplateColumns:
+          `${roomColumnWidth}px auto`,
+      }}
+    >
+      <div
+        className="sticky left-0 z-20 flex items-center border-r border-white/10 bg-[#0b0b0b] px-5"
+        style={{
+          height: ROW_HEIGHT,
+        }}
+      >
         <div className="min-w-0">
           <p className="truncate text-sm font-medium text-white/85">
             {room.name}
           </p>
 
-          <p className="mt-1 truncate text-xs text-white/35">
-            {room.roomTypeName}
+          <p className="mt-1.5 truncate text-[9px] uppercase tracking-[0.24em] text-white/30">
+            {room.code}
           </p>
-
-          <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-[9px] uppercase tracking-[0.22em] text-white/25">
-            <span>{room.code}</span>
-
-            {room.floor !== null && (
-              <span>Etaj {room.floor}</span>
-            )}
-          </div>
         </div>
       </div>
 
       <div
-        className="relative min-h-[92px]"
+        className="relative"
         style={{
           width:
             days.length * dayWidth,
+
+          height:
+            ROW_HEIGHT,
         }}
       >
         <div
           className="absolute inset-0 grid"
           style={{
-            gridTemplateColumns: `repeat(${days.length}, ${dayWidth}px)`,
+            gridTemplateColumns:
+              `repeat(${days.length}, ${dayWidth}px)`,
           }}
         >
           {days.map((day) => (
@@ -73,12 +84,15 @@ export function CalendarRoomRow({
               key={day.date}
               className={[
                 "border-r border-white/10 last:border-r-0",
+
                 day.isWeekend
                   ? "bg-white/[0.018]"
                   : "",
+
                 day.isToday
                   ? "bg-gold/[0.055]"
                   : "",
+
                 day.isOutsidePrimaryMonth
                   ? "opacity-55"
                   : "",
@@ -90,9 +104,10 @@ export function CalendarRoomRow({
         </div>
 
         <div
-          className="relative z-10 grid min-h-[92px] items-center px-1"
+          className="relative z-10 grid h-full items-stretch py-1.5"
           style={{
-            gridTemplateColumns: `repeat(${days.length}, ${dayWidth}px)`,
+            gridTemplateColumns:
+              `repeat(${days.length}, ${dayWidth}px)`,
           }}
         >
           {roomEvents.map((event) => {
@@ -113,11 +128,14 @@ export function CalendarRoomRow({
                 style={{
                   gridColumnStart:
                     position.columnStart,
-                  gridColumnEnd: `span ${position.columnSpan}`,
+
+                  gridColumnEnd:
+                    `span ${position.columnSpan}`,
                 }}
               >
                 <CalendarEventBar
                   event={event}
+                  className="h-full"
                 />
               </div>
             );
