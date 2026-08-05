@@ -25,6 +25,14 @@ import {
   X,
 } from "lucide-react";
 
+import {
+  PUBLIC_ROUTES,
+  getEquivalentLocaleHref,
+  getLocaleFromPathname,
+  getPublicHref,
+  type PublicRouteKey,
+} from "@/lib/public-routes";
+
 type MobileMenuProps = {
   isOpen: boolean;
   onClose: () => void;
@@ -32,9 +40,10 @@ type MobileMenuProps = {
 
 type MenuLink = {
   number: string;
-  label: string;
-  eyebrow: string;
-  href: string;
+  routeKey: Exclude<
+    PublicRouteKey,
+    "book"
+  >;
   image: string;
 };
 
@@ -51,59 +60,53 @@ type BodyStylesSnapshot = {
 const links: MenuLink[] = [
   {
     number: "01",
-    label: "Acasă",
-    eyebrow: "Sunshine Resort",
-    href: "/ro",
+    routeKey: "home",
     image: "/hero-mockup.jpg",
   },
   {
     number: "02",
-    label: "Camere",
-    eyebrow: "Apartamente",
-    href: "/ro/rooms",
-    image: "/images/room-premium-1.jpg",
+    routeKey: "rooms",
+    image:
+      "/images/room-premium-1.jpg",
   },
   {
     number: "03",
-    label: "Facilități",
-    eyebrow: "Experiența resortului",
-    href: "/ro/facilities",
-    image: "/images/atractions-1.jpg",
+    routeKey:
+      "facilities",
+    image:
+      "/images/atractions-1.jpg",
   },
   {
     number: "04",
-    label: "Piscină cu apă sărată",
-    eyebrow: "Wellness",
-    href: "/ro/salt-water-pool",
-    image: "/images/pool-salt.jpg",
+    routeKey:
+      "saltWaterPool",
+    image:
+      "/images/pool-salt.jpg",
   },
   {
     number: "05",
-    label: "Atracții turistice",
-    eyebrow: "Descoperă împrejurimile",
-    href: "/ro/attractions",
-    image: "/images/atractions-2.jpg",
+    routeKey:
+      "attractions",
+    image:
+      "/images/atractions-2.jpg",
   },
   {
     number: "06",
-    label: "Galerie",
-    eyebrow: "Momente Sunshine",
-    href: "/ro/gallery",
-    image: "/images/room-deluxe-1.jpg",
+    routeKey: "gallery",
+    image:
+      "/images/room-deluxe-1.jpg",
   },
   {
     number: "07",
-    label: "Despre noi",
-    eyebrow: "Povestea resortului",
-    href: "/ro/about",
-    image: "/images/about-slow.webp",
+    routeKey: "about",
+    image:
+      "/images/about-slow.webp",
   },
   {
     number: "08",
-    label: "Contact",
-    eyebrow: "Suntem aici pentru tine",
-    href: "/ro/contact",
-    image: "/images/ogna-sugatag-4.png",
+    routeKey: "contact",
+    image:
+      "/images/ogna-sugatag-4.png",
   },
 ];
 
@@ -130,6 +133,11 @@ export function MobileMenu({
 }: MobileMenuProps) {
   const router = useRouter();
   const pathname = usePathname();
+
+  const locale =
+    getLocaleFromPathname(
+      pathname,
+    );
 
   const [
     activeLinkIndex,
@@ -165,6 +173,41 @@ export function MobileMenu({
   const activeLink =
     links[activeLinkIndex];
 
+  const activeRoute =
+    PUBLIC_ROUTES[
+      activeLink.routeKey
+    ];
+
+  const activeLabel =
+    activeRoute.labels[locale];
+
+  const activeEyebrow =
+    activeRoute.eyebrow[locale];
+
+  const activeHref =
+    getPublicHref(
+      activeLink.routeKey,
+      locale,
+    );
+
+  const romanianHref =
+    getEquivalentLocaleHref(
+      pathname,
+      "ro",
+    );
+
+  const englishHref =
+    getEquivalentLocaleHref(
+      pathname,
+      "en",
+    );
+
+  const bookingHref =
+    getPublicHref(
+      "book",
+      locale,
+    );
+
   const lockPageScroll =
     useCallback(() => {
       if (
@@ -189,22 +232,16 @@ export function MobileMenu({
       bodyStylesRef.current = {
         position:
           body.style.position,
-
         top:
           body.style.top,
-
         left:
           body.style.left,
-
         right:
           body.style.right,
-
         width:
           body.style.width,
-
         overflow:
           body.style.overflow,
-
         paddingRight:
           body.style.paddingRight,
       };
@@ -265,11 +302,6 @@ export function MobileMenu({
       const savedScrollPosition =
         scrollPositionRef.current;
 
-      /*
-       * Restaurarea poziției trebuie să fie instantanee,
-       * ca să nu apară un salt între scoaterea lui
-       * position: fixed și revenirea la scrollul anterior.
-       */
       html.style.scrollBehavior =
         "auto";
 
@@ -328,35 +360,13 @@ export function MobileMenu({
       pendingNavigationRef.current =
         null;
 
-      if (!pendingHref) {
-        return;
-      }
-
-      /*
-       * Dacă utilizatorul selectează pagina pe care
-       * se află deja, ruta nu se schimbă, deci
-       * ScrollToTop nu ar mai primi un pathname nou.
-       */
       if (
+        !pendingHref ||
         pendingHref === pathname
       ) {
-        window.requestAnimationFrame(
-          () => {
-            window.scrollTo({
-              top: 0,
-              left: 0,
-              behavior: "smooth",
-            });
-          },
-        );
-
         return;
       }
 
-      /*
-       * Ruta este schimbată numai după ce meniul și-a
-       * terminat animația și pagina a fost deblocată.
-       */
       router.push(
         pendingHref,
         {
@@ -373,11 +383,6 @@ export function MobileMenu({
     event: MouseEvent<HTMLAnchorElement>,
     href: string,
   ) {
-    /*
-     * Păstrăm comportamentul normal pentru:
-     * Ctrl + click, Cmd + click, Shift + click
-     * și deschiderea într-un tab nou.
-     */
     if (
       event.metaKey ||
       event.ctrlKey ||
@@ -439,9 +444,31 @@ export function MobileMenu({
 
   useEffect(() => {
     if (isOpen) {
-      setActiveLinkIndex(0);
+      const currentRouteIndex =
+        links.findIndex(
+          (link) =>
+            getPublicHref(
+              link.routeKey,
+              locale,
+            ) === pathname ||
+            `/${locale}${
+              PUBLIC_ROUTES[
+                link.routeKey
+              ].internalPath
+            }` === pathname,
+        );
+
+      setActiveLinkIndex(
+        currentRouteIndex >= 0
+          ? currentRouteIndex
+          : 0,
+      );
     }
-  }, [isOpen]);
+  }, [
+    isOpen,
+    locale,
+    pathname,
+  ]);
 
   useEffect(() => {
     return () => {
@@ -483,7 +510,11 @@ export function MobileMenu({
           <motion.button
             type="button"
             onClick={handleClose}
-            aria-label="Închide meniul"
+            aria-label={
+              locale === "ro"
+                ? "Închide meniul"
+                : "Close menu"
+            }
             initial={{
               opacity: 0,
               rotate: -35,
@@ -495,7 +526,6 @@ export function MobileMenu({
             exit={{
               opacity: 0,
               rotate: 25,
-
               transition: {
                 duration: 0.16,
               },
@@ -522,7 +552,6 @@ export function MobileMenu({
             exit={{
               opacity: 0,
               y: -8,
-
               transition: {
                 duration: 0.15,
               },
@@ -535,14 +564,24 @@ export function MobileMenu({
             className="absolute right-6 top-8 z-50 flex items-center gap-5 text-[10px] uppercase tracking-[0.32em] md:right-8 md:top-9"
           >
             <Link
-              href="/ro"
+              href={romanianHref}
+              scroll={false}
               onClick={(event) =>
                 handleNavigation(
                   event,
-                  "/ro",
+                  romanianHref,
                 )
               }
-              className="text-gold"
+              aria-current={
+                locale === "ro"
+                  ? "page"
+                  : undefined
+              }
+              className={
+                locale === "ro"
+                  ? "text-gold"
+                  : "text-white/65 transition hover:text-gold"
+              }
             >
               RO
             </Link>
@@ -552,14 +591,24 @@ export function MobileMenu({
             </span>
 
             <Link
-              href="/en"
+              href={englishHref}
+              scroll={false}
               onClick={(event) =>
                 handleNavigation(
                   event,
-                  "/en",
+                  englishHref,
                 )
               }
-              className="text-white/65 transition hover:text-gold"
+              aria-current={
+                locale === "en"
+                  ? "page"
+                  : undefined
+              }
+              className={
+                locale === "en"
+                  ? "text-gold"
+                  : "text-white/65 transition hover:text-gold"
+              }
             >
               EN
             </Link>
@@ -567,16 +616,19 @@ export function MobileMenu({
             <span className="h-5 w-px bg-white/20" />
 
             <Link
-              href="/ro/book"
+              href={bookingHref}
               onClick={(event) =>
                 handleNavigation(
                   event,
-                  "/ro/book",
+                  bookingHref,
                 )
               }
               className="text-gold transition hover:text-white"
             >
-              Book
+              {
+                PUBLIC_ROUTES.book
+                  .labels[locale]
+              }
             </Link>
           </motion.div>
 
@@ -587,13 +639,11 @@ export function MobileMenu({
               }}
               animate={{
                 x: 0,
-
                 transition:
                   openPanelTransition,
               }}
               exit={{
                 x: "-100%",
-
                 transition:
                   closePanelTransition,
               }}
@@ -612,7 +662,6 @@ export function MobileMenu({
                   exit={{
                     opacity: 0,
                     y: -8,
-
                     transition: {
                       duration: 0.15,
                     },
@@ -663,13 +712,31 @@ export function MobileMenu({
                         link,
                         index,
                       ) => {
+                        const route =
+                          PUBLIC_ROUTES[
+                            link.routeKey
+                          ];
+
+                        const href =
+                          getPublicHref(
+                            link.routeKey,
+                            locale,
+                          );
+
+                        const label =
+                          route.labels[
+                            locale
+                          ];
+
                         const isActive =
                           activeLinkIndex ===
                           index;
 
                         return (
                           <motion.li
-                            key={link.href}
+                            key={
+                              link.routeKey
+                            }
                             initial={{
                               opacity: 0,
                               x: -24,
@@ -681,10 +748,8 @@ export function MobileMenu({
                             exit={{
                               opacity: 0,
                               x: -16,
-
                               transition: {
                                 duration: 0.12,
-
                                 delay:
                                   index *
                                   0.01,
@@ -695,17 +760,16 @@ export function MobileMenu({
                                 0.08 +
                                 index *
                                   0.035,
-
                               duration: 0.42,
                               ease: easing,
                             }}
                           >
                             <Link
-                              href={link.href}
+                              href={href}
                               onClick={(event) =>
                                 handleNavigation(
                                   event,
-                                  link.href,
+                                  href,
                                 )
                               }
                               onMouseEnter={() =>
@@ -727,7 +791,9 @@ export function MobileMenu({
                                     : "text-white/15"
                                 }`}
                               >
-                                {link.number}
+                                {
+                                  link.number
+                                }
                               </span>
 
                               <span className="flex min-w-0 items-center gap-4">
@@ -746,7 +812,7 @@ export function MobileMenu({
                                       : "text-[1.8rem] text-white/68 group-hover:translate-x-1 group-hover:text-gold xl:text-[1.95rem]"
                                   }`}
                                 >
-                                  {link.label}
+                                  {label}
                                 </span>
                               </span>
                             </Link>
@@ -769,7 +835,6 @@ export function MobileMenu({
                   exit={{
                     opacity: 0,
                     y: 8,
-
                     transition: {
                       duration: 0.14,
                     },
@@ -818,7 +883,6 @@ export function MobileMenu({
               animate={{
                 opacity: 1,
                 scale: 1,
-
                 transition: {
                   duration: 0.7,
                   ease: easing,
@@ -827,7 +891,6 @@ export function MobileMenu({
               exit={{
                 opacity: 0,
                 scale: 1.015,
-
                 transition: {
                   duration: 0.24,
                   ease: easing,
@@ -841,7 +904,9 @@ export function MobileMenu({
                   index,
                 ) => (
                   <motion.div
-                    key={link.href}
+                    key={
+                      link.routeKey
+                    }
                     initial={false}
                     animate={{
                       opacity:
@@ -849,7 +914,6 @@ export function MobileMenu({
                         index
                           ? 1
                           : 0,
-
                       scale:
                         activeLinkIndex ===
                         index
@@ -860,7 +924,6 @@ export function MobileMenu({
                       opacity: {
                         duration: 0.42,
                       },
-
                       scale: {
                         duration: 1.1,
                         ease: easing,
@@ -890,7 +953,7 @@ export function MobileMenu({
 
               <div className="absolute bottom-14 left-14 right-14 z-10 flex items-end justify-between gap-10 xl:bottom-16 xl:left-16 xl:right-16">
                 <motion.div
-                  key={activeLink.href}
+                  key={activeHref}
                   initial={{
                     opacity: 0,
                     y: 18,
@@ -905,24 +968,26 @@ export function MobileMenu({
                   }}
                 >
                   <p className="text-[9px] uppercase tracking-[0.42em] text-gold">
-                    {activeLink.eyebrow}
+                    {activeEyebrow}
                   </p>
 
                   <h3 className="heading mt-4 max-w-3xl text-5xl font-light leading-none text-white xl:text-6xl">
-                    {activeLink.label}
+                    {activeLabel}
                   </h3>
 
                   <Link
-                    href={activeLink.href}
+                    href={activeHref}
                     onClick={(event) =>
                       handleNavigation(
                         event,
-                        activeLink.href,
+                        activeHref,
                       )
                     }
                     className="group mt-7 inline-flex items-center gap-4 text-[9px] uppercase tracking-[0.3em] text-white/55 transition hover:text-gold"
                   >
-                    Descoperă
+                    {locale === "ro"
+                      ? "Descoperă"
+                      : "Discover"}
 
                     <ArrowRight className="h-4 w-4 transition duration-300 group-hover:translate-x-1" />
                   </Link>
@@ -931,7 +996,8 @@ export function MobileMenu({
                 <div className="shrink-0 text-right">
                   <p className="text-[8px] uppercase tracking-[0.3em] text-white/35">
                     {String(
-                      activeLinkIndex + 1,
+                      activeLinkIndex +
+                        1,
                     ).padStart(
                       2,
                       "0",
@@ -947,7 +1013,9 @@ export function MobileMenu({
 
                   <div className="mt-5 text-[8px] uppercase tracking-[0.28em] text-white/38">
                     <p>
-                      România
+                      {locale === "ro"
+                        ? "România"
+                        : "Romania"}
                     </p>
 
                     <p className="mt-2">
@@ -974,7 +1042,6 @@ export function MobileMenu({
               exit={{
                 opacity: 0,
                 scale: 1.01,
-
                 transition: {
                   duration: 0.2,
                 },

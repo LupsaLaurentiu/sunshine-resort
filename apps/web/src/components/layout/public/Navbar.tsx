@@ -1,16 +1,58 @@
 "use client";
 
-import Link from "next/link";
-import { Menu } from "lucide-react";
-import { useState } from "react";
+import {
+  useState,
+} from "react";
 
-import { MobileMenu } from "./MobileMenu";
+import Link from "next/link";
+import {
+  Menu,
+} from "lucide-react";
+import {
+  usePathname,
+} from "next/navigation";
+
+import {
+  getEquivalentLocaleHref,
+  getLocaleFromPathname,
+  getPublicHref,
+} from "@/lib/public-routes";
+
+import {
+  MobileMenu,
+} from "./MobileMenu";
 
 export function Navbar() {
+  const pathname =
+    usePathname();
+
   const [
     isMenuOpen,
     setIsMenuOpen,
   ] = useState(false);
+
+  const locale =
+    getLocaleFromPathname(
+      pathname,
+    );
+
+  const roHref =
+    getEquivalentLocaleHref(
+      pathname,
+      "ro",
+    );
+
+  const enHref =
+    getEquivalentLocaleHref(
+      pathname,
+      "en",
+    );
+
+  const bookingHref =
+    getPublicHref(
+      "book",
+      locale,
+    );
 
   return (
     <>
@@ -21,24 +63,53 @@ export function Navbar() {
             onClick={() =>
               setIsMenuOpen(true)
             }
-            aria-label="Deschide meniul"
+            aria-label={
+              locale === "ro"
+                ? "Deschide meniul"
+                : "Open menu"
+            }
             className="relative z-[301] flex h-10 w-10 items-center justify-center"
           >
             <Menu className="h-8 w-8 stroke-[1.4]" />
           </button>
 
           <div className="flex items-center gap-6 text-xs uppercase tracking-[0.3em]">
-            <div className="flex gap-2">
+            <div className="flex items-center gap-2">
               <Link
-                href="/ro"
-                className="text-gold"
+                href={roHref}
+                scroll={false}
+                aria-current={
+                  locale === "ro"
+                    ? "page"
+                    : undefined
+                }
+                className={
+                  locale === "ro"
+                    ? "text-gold"
+                    : "text-white/70 transition hover:text-gold"
+                }
               >
                 RO
               </Link>
 
-              <span>/</span>
+              <span className="text-white/40">
+                /
+              </span>
 
-              <Link href="/en">
+              <Link
+                href={enHref}
+                scroll={false}
+                aria-current={
+                  locale === "en"
+                    ? "page"
+                    : undefined
+                }
+                className={
+                  locale === "en"
+                    ? "text-gold"
+                    : "text-white/70 transition hover:text-gold"
+                }
+              >
                 EN
               </Link>
             </div>
@@ -46,10 +117,12 @@ export function Navbar() {
             <span className="h-5 w-px bg-white/40" />
 
             <Link
-              href="/ro/book"
-              className="text-gold"
+              href={bookingHref}
+              className="text-gold transition hover:text-white"
             >
-              Book
+              {locale === "ro"
+                ? "Rezervă"
+                : "Book"}
             </Link>
           </div>
         </div>

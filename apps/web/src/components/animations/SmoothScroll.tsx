@@ -1,36 +1,89 @@
 "use client";
 
-import Lenis from "lenis";
-import { useEffect } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 
-export function SmoothScroll() {
+import Lenis from "lenis";
+
+type SmoothScrollContextValue = {
+  lenis: Lenis | null;
+};
+
+const SmoothScrollContext =
+  createContext<SmoothScrollContextValue>({
+    lenis: null,
+  });
+
+type SmoothScrollProps = {
+  children: ReactNode;
+};
+
+export function SmoothScroll({
+  children,
+}: SmoothScrollProps) {
+  const [lenis, setLenis] =
+    useState<Lenis | null>(null);
+
   useEffect(() => {
-    const lenis = new Lenis({
+    const instance = new Lenis({
       duration: 1.15,
       smoothWheel: true,
       wheelMultiplier: 0.9,
     });
 
-    let rafId: number;
+    let animationFrameId = 0;
 
     function raf(time: number) {
-      lenis.raf(time);
+      instance.raf(time);
 
-      rafId =
-        requestAnimationFrame(raf);
+      animationFrameId =
+        window.requestAnimationFrame(
+          raf,
+        );
     }
 
-    rafId =
-      requestAnimationFrame(raf);
-
-    return () => {
-      cancelAnimationFrame(
-        rafId,
+    animationFrameId =
+      window.requestAnimationFrame(
+        raf,
       );
 
-      lenis.destroy();
+    setLenis(instance);
+
+    return () => {
+      window.cancelAnimationFrame(
+        animationFrameId,
+      );
+
+      instance.destroy();
+      setLenis(null);
     };
   }, []);
 
-  return null;
+  const value =
+    useMemo<SmoothScrollContextValue>(
+      () => ({
+        lenis,
+      }),
+      [lenis],
+    );
+
+  return (
+    <SmoothScrollContext.Provider
+      value={value}
+    >
+      {children}
+    </SmoothScrollContext.Provider>
+  );
+}
+
+export function useSmoothScroll(): SmoothScrollContextValue {
+  return useContext(
+    SmoothScrollContext,
+  );
 }
