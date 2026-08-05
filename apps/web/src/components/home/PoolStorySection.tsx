@@ -1,10 +1,11 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
+
 import {
   ArrowRight,
 } from "lucide-react";
+
 import {
   usePathname,
 } from "next/navigation";
@@ -12,6 +13,10 @@ import {
 import {
   FadeIn,
 } from "@/components/animations/FadeIn";
+
+import {
+  ParallaxImage,
+} from "@/components/animations/ParallaxImage";
 
 import {
   getLocaleFromPathname,
@@ -37,6 +42,9 @@ const POOL_CONTENT = {
 
     imageAlt:
       "Piscina interioară cu apă sărată de la Sunshine Resort",
+
+    imageLabel:
+      "Wellness · Relaxare · Adults Only",
   },
 
   en: {
@@ -57,6 +65,9 @@ const POOL_CONTENT = {
 
     imageAlt:
       "The indoor saltwater pool at Sunshine Resort",
+
+    imageLabel:
+      "Wellness · Relaxation · Adults Only",
   },
 } as const;
 
@@ -83,12 +94,12 @@ export function PoolStorySection() {
       aria-labelledby="pool-story-title"
       className="relative isolate min-h-[100svh] overflow-hidden bg-[#050505]"
     >
-      <Image
+      <ParallaxImage
         src="/images/pool-salt.jpg"
         alt={content.imageAlt}
-        fill
         sizes="100vw"
-        className="object-cover object-center"
+        speed={1.2}
+        overscan={22}
       />
 
       <div className="absolute inset-0 bg-black/35" />
@@ -106,7 +117,10 @@ export function PoolStorySection() {
               </p>
             </FadeIn>
 
-            <FadeIn delay={0.12}>
+            <FadeIn
+              delay={0.12}
+              distance={46}
+            >
               <h2
                 id="pool-story-title"
                 className="heading mt-8 text-5xl font-light leading-[0.94] tracking-[-0.02em] text-white sm:text-6xl md:text-7xl lg:text-8xl"
@@ -125,17 +139,26 @@ export function PoolStorySection() {
               </h2>
             </FadeIn>
 
-            <FadeIn delay={0.24}>
+            <FadeIn
+              delay={0.24}
+              distance={22}
+            >
               <div className="mt-10 h-px w-16 bg-gold/75 md:w-20" />
             </FadeIn>
 
-            <FadeIn delay={0.32}>
+            <FadeIn
+              delay={0.32}
+              distance={24}
+            >
               <p className="mt-10 max-w-xl text-sm leading-8 text-white/70 sm:text-[15px] md:text-base md:leading-9">
                 {content.description}
               </p>
             </FadeIn>
 
-            <FadeIn delay={0.42}>
+            <FadeIn
+              delay={0.42}
+              distance={18}
+            >
               <Link
                 href={poolHref}
                 className="group mt-12 inline-flex min-h-12 items-center justify-center gap-4 border border-gold px-8 py-3.5 text-[9px] font-semibold uppercase tracking-[0.28em] text-gold transition duration-500 hover:bg-gold hover:text-black sm:px-10 sm:text-[10px]"
@@ -149,13 +172,13 @@ export function PoolStorySection() {
         </div>
       </div>
 
-      <div className="pointer-events-none absolute bottom-8 right-8 hidden items-center gap-4 text-[8px] uppercase tracking-[0.34em] text-white/40 md:flex lg:bottom-10 lg:right-12">
+      <div className="pointer-events-none absolute bottom-8 right-8 z-10 hidden items-center gap-4 text-[8px] uppercase tracking-[0.34em] text-white/40 md:flex lg:bottom-10 lg:right-12">
         <span>
-          Adults Only Wellness
+          {content.imageLabel}
         </span>
 
         <span className="h-px w-10 bg-gold/70" />
       </div>
     </section>
   );
-} 
+}
