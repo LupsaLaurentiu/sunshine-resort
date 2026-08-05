@@ -202,3 +202,22 @@ a {
     animation: none !important;
   }
 }
+
+@keyframes hero-scroll-arrow {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: translateY(0);
+  }
+
+  50% {
+    opacity: 1;
+    transform: translateY(10px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [class*="hero-scroll-arrow"] {
+    animation: none !important;
+  }
+}
