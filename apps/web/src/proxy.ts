@@ -10,15 +10,50 @@ import {
 export function proxy(
   request: NextRequest,
 ) {
+  const pathname =
+    request.nextUrl.pathname;
+
+  /*
+   * Rute dinamice pentru apartamente:
+   *
+   * /ro/camere/premium-apartment
+   *      ↓ rewrite intern
+   * /ro/rooms/premium-apartment
+   */
+  const romanianRoomMatch =
+    pathname.match(
+      /^\/ro\/camere\/([^/]+)\/?$/,
+    );
+
+  if (
+    romanianRoomMatch?.[1]
+  ) {
+    const rewriteUrl =
+      request.nextUrl.clone();
+
+    rewriteUrl.pathname =
+      `/ro/rooms/${romanianRoomMatch[1]}`;
+
+    return NextResponse.rewrite(
+      rewriteUrl,
+    );
+  }
+
+  /*
+   * Ruta engleză este deja identică
+   * structurii interne:
+   *
+   * /en/rooms/premium-apartment
+   */
   const internalPath =
     getInternalPathFromPublicPath(
-      request.nextUrl.pathname,
+      pathname,
     );
 
   if (
     !internalPath ||
     internalPath ===
-      request.nextUrl.pathname
+      pathname
   ) {
     return NextResponse.next();
   }
