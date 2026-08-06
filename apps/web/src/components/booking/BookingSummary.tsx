@@ -1,6 +1,8 @@
 "use client";
 
-import { useParams } from "next/navigation";
+import {
+  useParams,
+} from "next/navigation";
 
 import type {
   BookingRoom,
@@ -48,12 +50,21 @@ function formatPrice(
       ? "ro-RO"
       : "en-GB",
     {
-      style: "currency",
-      currency: "RON",
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 2,
+      style:
+        "currency",
+
+      currency:
+        "RON",
+
+      minimumFractionDigits:
+        0,
+
+      maximumFractionDigits:
+        2,
     },
-  ).format(value);
+  ).format(
+    value,
+  );
 }
 
 function formatDate(
@@ -64,34 +75,49 @@ function formatDate(
     return "—";
   }
 
-  const [year, month, day] =
+  const [
+    year,
+    month,
+    day,
+  ] =
     value
       .split("-")
       .map(Number);
 
-  const date = new Date(
-    year,
-    month - 1,
-    day,
-  );
+  const date =
+    new Date(
+      year,
+      month - 1,
+      day,
+    );
 
   return new Intl.DateTimeFormat(
     locale === "ro"
       ? "ro-RO"
       : "en-GB",
     {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
+      day:
+        "2-digit",
+
+      month:
+        "short",
+
+      year:
+        "numeric",
     },
-  ).format(date);
+  ).format(
+    date,
+  );
 }
 
 function getExtraAdultLabel(
   quantity: number,
   locale: "ro" | "en",
 ): string {
-  if (locale === "en") {
+  if (
+    locale ===
+    "en"
+  ) {
     return quantity === 1
       ? "1 extra adult"
       : `${quantity} extra adults`;
@@ -108,7 +134,10 @@ function getRateTypeLabel(
     | "WEEKEND",
   locale: "ro" | "en",
 ): string {
-  if (rateType === "WEEKEND") {
+  if (
+    rateType ===
+    "WEEKEND"
+  ) {
     return "weekend";
   }
 
@@ -121,7 +150,10 @@ function getNightsLabel(
   nights: number,
   locale: "ro" | "en",
 ): string {
-  if (locale === "en") {
+  if (
+    locale ===
+    "en"
+  ) {
     return nights === 1
       ? "night"
       : "nights";
@@ -130,6 +162,24 @@ function getNightsLabel(
   return nights === 1
     ? "noapte"
     : "nopți";
+}
+
+function getApartmentLabel(
+  quantity: number,
+  locale: "ro" | "en",
+): string {
+  if (
+    locale ===
+    "en"
+  ) {
+    return quantity === 1
+      ? "apartment"
+      : "apartments";
+  }
+
+  return quantity === 1
+    ? "apartament"
+    : "apartamente";
 }
 
 function buildRateBreakdown(
@@ -149,23 +199,30 @@ function buildRateBreakdown(
       `${nightlyRate.rateType}:${nightlyRate.price}`;
 
     const existing =
-      groupedRates.get(key);
+      groupedRates.get(
+        key,
+      );
 
     if (existing) {
-      existing.nights += 1;
+      existing.nights +=
+        1;
 
       continue;
     }
 
-    groupedRates.set(key, {
-      rateType:
-        nightlyRate.rateType,
+    groupedRates.set(
+      key,
+      {
+        rateType:
+          nightlyRate.rateType,
 
-      price:
-        nightlyRate.price,
+        price:
+          nightlyRate.price,
 
-      nights: 1,
-    });
+        nights:
+          1,
+      },
+    );
   }
 
   return Array.from(
@@ -209,21 +266,29 @@ export function BookingSummary({
     }>();
 
   const locale =
-    params.locale === "en"
+    params.locale ===
+    "en"
       ? "en"
       : "ro";
 
   const selectedRoomsList =
     rooms.filter(
-      (room) =>
-        (selectedRooms[
-          room.slug
-        ] ?? 0) > 0,
+      (
+        room,
+      ) =>
+        (
+          selectedRooms[
+            room.slug
+          ] ?? 0
+        ) > 0,
     );
 
   const displayedTotal =
     selectedRoomsList.reduce(
-      (sum, room) => {
+      (
+        sum,
+        room,
+      ) => {
         const roomQuantity =
           selectedRooms[
             room.slug
@@ -253,28 +318,34 @@ export function BookingSummary({
     );
 
   return (
-    <aside className="booking-scroll sticky top-24 max-h-[calc(100vh-7rem)] overflow-y-auto border border-white/10 bg-[#0b0b0b] p-7 xl:p-8">
-      <p className="text-xs uppercase tracking-[0.4em] text-gold">
+    <aside
+      aria-labelledby="booking-summary-title"
+      className="booking-scroll max-h-[calc(100vh-7rem)] overflow-y-auto border border-white/10 bg-[#0b0b0b] p-7 xl:p-8"
+    >
+      <p className="text-[9px] font-medium uppercase tracking-[0.42em] text-gold sm:text-[10px]">
         {locale === "en"
-          ? "Your Request"
+          ? "Your request"
           : "Cererea ta"}
       </p>
 
-      <h2 className="heading mt-4 text-4xl font-light">
+      <h2
+        id="booking-summary-title"
+        className="heading mt-4 text-4xl font-light leading-[1.05] tracking-[-0.015em]"
+      >
         {locale === "en"
           ? "Booking summary"
           : "Rezumatul rezervării"}
       </h2>
 
       <div className="mt-7 space-y-4 border-y border-white/10 py-6 text-sm">
-        <div className="flex justify-between gap-5 text-white/55">
+        <div className="flex justify-between gap-5 text-white/50">
           <span>
             {locale === "en"
               ? "Check-in"
               : "Sosire"}
           </span>
 
-          <span className="text-white">
+          <span className="text-right text-white/90">
             {formatDate(
               checkIn,
               locale,
@@ -282,14 +353,14 @@ export function BookingSummary({
           </span>
         </div>
 
-        <div className="flex justify-between gap-5 text-white/55">
+        <div className="flex justify-between gap-5 text-white/50">
           <span>
             {locale === "en"
               ? "Check-out"
               : "Plecare"}
           </span>
 
-          <span className="text-white">
+          <span className="text-right text-white/90">
             {formatDate(
               checkOut,
               locale,
@@ -297,30 +368,32 @@ export function BookingSummary({
           </span>
         </div>
 
-        <div className="flex justify-between gap-5 text-white/55">
+        <div className="flex justify-between gap-5 text-white/50">
           <span>
             {locale === "en"
               ? "Nights"
               : "Nopți"}
           </span>
 
-          <span className="text-white">
+          <span className="text-white/90">
             {nights || "—"}
           </span>
         </div>
       </div>
 
-      <div className="space-y-6 py-6">
+      <div className="space-y-7 py-6">
         {selectedRoomsList.length ===
         0 ? (
-          <p className="text-sm text-white/40">
+          <p className="text-sm leading-7 text-white/40">
             {locale === "en"
               ? "No apartments selected yet."
               : "Nu ai selectat încă niciun apartament."}
           </p>
         ) : (
           selectedRoomsList.map(
-            (room) => {
+            (
+              room,
+            ) => {
               const roomQuantity =
                 selectedRooms[
                   room.slug
@@ -354,26 +427,24 @@ export function BookingSummary({
                   key={
                     room.roomTypeId
                   }
-                  className="border-b border-white/10 pb-6 last:border-b-0 last:pb-0"
+                  className="border-b border-white/10 pb-7 last:border-b-0 last:pb-0"
                 >
                   <div className="flex items-start justify-between gap-5">
                     <div>
-                      <p className="text-sm text-white">
-                        {room.title}
+                      <p className="text-sm leading-6 text-white/90">
+                        {
+                          room.title
+                        }
                       </p>
 
                       <p className="mt-1 text-xs text-white/35">
-                        {roomQuantity}{" "}
-                        {locale ===
-                        "en"
-                          ? roomQuantity ===
-                            1
-                            ? "apartment"
-                            : "apartments"
-                          : roomQuantity ===
-                              1
-                            ? "apartament"
-                            : "apartamente"}
+                        {
+                          roomQuantity
+                        }{" "}
+                        {getApartmentLabel(
+                          roomQuantity,
+                          locale,
+                        )}
                       </p>
                     </div>
 
@@ -385,68 +456,71 @@ export function BookingSummary({
                     </span>
                   </div>
 
-                  <div className="mt-4 space-y-2 border-l border-white/10 pl-4">
-                    {rateBreakdown.map(
-                      (
-                        breakdownItem,
-                      ) => {
-                        const lineSubtotal =
-                          breakdownItem.nights *
-                          breakdownItem.price *
-                          roomQuantity;
+                  {rateBreakdown.length >
+                    0 && (
+                    <div className="mt-4 space-y-2.5 border-l border-white/10 pl-4">
+                      {rateBreakdown.map(
+                        (
+                          breakdownItem,
+                        ) => {
+                          const lineSubtotal =
+                            breakdownItem.nights *
+                            breakdownItem.price *
+                            roomQuantity;
 
-                        return (
-                          <div
-                            key={`${breakdownItem.rateType}:${breakdownItem.price}`}
-                            className="flex items-start justify-between gap-4 text-xs"
-                          >
-                            <p className="leading-5 text-white/35">
-                              {
-                                breakdownItem.nights
-                              }{" "}
-                              {getNightsLabel(
-                                breakdownItem.nights,
-                                locale,
-                              )}{" "}
-                              {getRateTypeLabel(
-                                breakdownItem.rateType,
-                                locale,
-                              )}
-                              {" × "}
-                              {formatPrice(
-                                breakdownItem.price,
-                                locale,
-                              )}
+                          return (
+                            <div
+                              key={`${breakdownItem.rateType}:${breakdownItem.price}`}
+                              className="flex items-start justify-between gap-4 text-xs"
+                            >
+                              <p className="leading-5 text-white/35">
+                                {
+                                  breakdownItem.nights
+                                }{" "}
+                                {getNightsLabel(
+                                  breakdownItem.nights,
+                                  locale,
+                                )}{" "}
+                                {getRateTypeLabel(
+                                  breakdownItem.rateType,
+                                  locale,
+                                )}
+                                {" × "}
+                                {formatPrice(
+                                  breakdownItem.price,
+                                  locale,
+                                )}
 
-                              {roomQuantity >
-                                1 && (
-                                <>
-                                  {" × "}
-                                  {
-                                    roomQuantity
-                                  }
-                                </>
-                              )}
-                            </p>
+                                {roomQuantity >
+                                  1 && (
+                                  <>
+                                    {" × "}
+                                    {
+                                      roomQuantity
+                                    }
+                                  </>
+                                )}
+                              </p>
 
-                            <span className="shrink-0 text-white/55">
-                              {formatPrice(
-                                lineSubtotal,
-                                locale,
-                              )}
-                            </span>
-                          </div>
-                        );
-                      },
-                    )}
-                  </div>
+                              <span className="shrink-0 text-white/55">
+                                {formatPrice(
+                                  lineSubtotal,
+                                  locale,
+                                )}
+                              </span>
+                            </div>
+                          );
+                        },
+                      )}
+                    </div>
+                  )}
 
                   {extraAdultQuantity >
                     0 && (
                     <div className="mt-4 border-l border-gold/40 pl-4">
                       <div className="flex items-start justify-between gap-5">
                         <div>
-                          <p className="text-xs text-gold">
+                          <p className="text-xs leading-5 text-gold">
                             {getExtraAdultLabel(
                               extraAdultQuantity,
                               locale,
@@ -454,7 +528,9 @@ export function BookingSummary({
                           </p>
 
                           <p className="mt-1 text-xs leading-5 text-white/30">
-                            {nights}{" "}
+                            {
+                              nights
+                            }{" "}
                             {getNightsLabel(
                               nights,
                               locale,
@@ -488,12 +564,12 @@ export function BookingSummary({
                     </div>
                   )}
 
-                  <div className="mt-4 flex justify-between gap-5 border-t border-white/5 pt-4 text-xs">
-                    <span className="text-white/35">
+                  <div className="mt-6 flex items-center justify-between gap-5 border-t border-white/[0.06] pt-5">
+                    <span className="text-[9px] font-medium uppercase tracking-[0.24em] text-white/35 sm:text-[10px]">
                       Subtotal
                     </span>
 
-                    <span className="text-white/70">
+                    <span className="text-sm font-medium text-white/90">
                       {formatPrice(
                         itemTotal,
                         locale,
@@ -509,13 +585,13 @@ export function BookingSummary({
 
       <div className="border-t border-white/10 pt-6">
         <div className="flex items-end justify-between gap-6">
-          <span className="text-xs uppercase tracking-[0.25em] text-white/45">
+          <span className="max-w-[150px] text-[9px] font-medium uppercase leading-5 tracking-[0.25em] text-white/45 sm:text-[10px]">
             {locale === "en"
               ? "Estimated total"
               : "Total estimat"}
           </span>
 
-          <span className="heading text-3xl">
+          <span className="heading shrink-0 text-3xl font-light">
             {formatPrice(
               displayedTotal,
               locale,
@@ -537,12 +613,16 @@ export function BookingSummary({
 
         <button
           type="button"
-          disabled={!canSubmit}
-          onClick={onSubmit}
-          className="mt-6 w-full bg-gold px-6 py-4 text-[10px] font-semibold uppercase tracking-[0.28em] text-black transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-30"
+          disabled={
+            !canSubmit
+          }
+          onClick={
+            onSubmit
+          }
+          className="mt-6 min-h-14 w-full border border-gold bg-gold px-6 py-4 text-[9px] font-semibold uppercase tracking-[0.28em] text-black transition duration-500 hover:border-white hover:bg-white disabled:cursor-not-allowed disabled:opacity-30 sm:text-[10px]"
         >
           {locale === "en"
-            ? "Send Booking Request"
+            ? "Send booking request"
             : "Trimite cererea de rezervare"}
         </button>
       </div>

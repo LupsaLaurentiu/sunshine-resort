@@ -1,9 +1,18 @@
 "use client";
 
+import {
+  useMemo,
+  useState,
+} from "react";
+
 import Image from "next/image";
 import Link from "next/link";
-import { useMemo, useState } from "react";
-import { useParams, useSearchParams } from "next/navigation";
+
+import {
+  useParams,
+  useSearchParams,
+} from "next/navigation";
+
 import {
   CalendarDays,
   Check,
@@ -11,69 +20,146 @@ import {
   CreditCard,
   LockKeyhole,
   Moon,
+  ShieldCheck,
+  Sparkles,
   Users,
+  WalletCards,
 } from "lucide-react";
 
-import { usePaymentAccess } from "@/hooks/usePaymentAccess";
-import { usePublicCheckout } from "@/hooks/usePublicCheckout";
+import {
+  usePaymentAccess,
+} from "@/hooks/usePaymentAccess";
 
-import type { PublicPaymentType } from "@/types/payment";
+import {
+  usePublicCheckout,
+} from "@/hooks/usePublicCheckout";
 
-function formatPrice(
-  value: number,
-  locale: "ro" | "en",
-): string {
-  return new Intl.NumberFormat(
-    locale === "ro" ? "ro-RO" : "en-GB",
-    {
-      style: "currency",
-      currency: "RON",
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 2,
-    },
-  ).format(value);
+import type {
+  PublicPaymentType,
+} from "@/types/payment";
+
+type Locale = "ro" | "en";
+
+const PAYMENT_PAGE_CONTENT = {
+  ro: {
+    loading: "Se încarcă detaliile plății",
+    unavailableEyebrow: "Plată indisponibilă",
+    unavailableTitle: "Acest link de plată nu poate fi folosit.",
+    unavailableFallback: "Linkul de plată este invalid sau a expirat.",
+    tryAgain: "Încearcă din nou",
+    returnHome: "Înapoi la pagina principală",
+    securePayment: "Plată securizată",
+    eyebrow: "Ultimul pas",
+    titlePrefix: "Sejurul tău este aproape confirmat",
+    reservationFor: "Rezervare pentru",
+    description: "Verifică detaliile sejurului și alege modalitatea de plată potrivită pentru tine.",
+    yourStay: "Sejurul tău",
+    reservationDetails: "Detaliile rezervării",
+    checkIn: "Check-in",
+    checkOut: "Check-out",
+    duration: "Durată",
+    guests: "Oaspeți",
+    night: "noapte",
+    nights: "nopți",
+    adults: "adulți",
+    apartments: "Apartamente",
+    adultsOnly: "Adults Only",
+    directBooking: "Rezervare directă",
+    paymentDeadline: "Termen de plată",
+    paymentDeadlinePrefix: "Finalizează plata până la",
+    paymentDeadlineSuffix: "pentru ca rezervarea să rămână disponibilă.",
+    payment: "Plată",
+    chooseOption: "Alege cum dorești să confirmi rezervarea.",
+    minimumDeposit: "Avans minim",
+    minimumDepositDescription: "Achită acum 50%, iar diferența poate fi plătită la locație.",
+    fullPayment: "Plată integrală",
+    fullPaymentDescription: "Achită integral rezervarea prin plata online securizată.",
+    reservationTotal: "Total rezervare",
+    alreadyPaid: "Deja achitat",
+    selectedPayment: "Plată selectată",
+    remainingAtResort: "Diferență la locație",
+    continue: "Continuă către plata securizată",
+    redirecting: "Se deschide plata...",
+    stripeNotice: "Plata este procesată securizat prin Stripe. Sunshine Resort nu stochează datele cardului tău.",
+    acceptedPayments: "Visa · Mastercard · Apple Pay · Google Pay",
+    secureCheckout: "Stripe Secure Checkout",
+  },
+  en: {
+    loading: "Loading payment details",
+    unavailableEyebrow: "Payment unavailable",
+    unavailableTitle: "This payment link cannot be used.",
+    unavailableFallback: "The payment link is invalid or has expired.",
+    tryAgain: "Try again",
+    returnHome: "Return home",
+    securePayment: "Secure payment",
+    eyebrow: "The final step",
+    titlePrefix: "Your stay is almost confirmed",
+    reservationFor: "Reservation for",
+    description: "Review your stay details and choose the payment option that suits you.",
+    yourStay: "Your stay",
+    reservationDetails: "Reservation details",
+    checkIn: "Check-in",
+    checkOut: "Check-out",
+    duration: "Duration",
+    guests: "Guests",
+    night: "night",
+    nights: "nights",
+    adults: "adults",
+    apartments: "Apartments",
+    adultsOnly: "Adults Only",
+    directBooking: "Direct booking",
+    paymentDeadline: "Payment deadline",
+    paymentDeadlinePrefix: "Complete payment before",
+    paymentDeadlineSuffix: "to keep your reservation available.",
+    payment: "Payment",
+    chooseOption: "Choose how you would like to confirm your reservation.",
+    minimumDeposit: "Minimum deposit",
+    recommended: "Recommended",
+    minimumDepositDescription: "Pay 50% now and the remaining balance at the resort.",
+    fullPayment: "Full payment",
+    fullPaymentDescription: "Complete the full payment securely online.",
+    reservationTotal: "Reservation total",
+    alreadyPaid: "Already paid",
+    selectedPayment: "Selected payment",
+    remainingAtResort: "Balance at the resort",
+    continue: "Continue to secure payment",
+    redirecting: "Redirecting...",
+    stripeNotice: "Payment is processed securely by Stripe. Sunshine Resort does not store your card details.",
+    acceptedPayments: "Visa · Mastercard · Apple Pay · Google Pay",
+    secureCheckout: "Stripe Secure Checkout",
+  },
+} as const;
+
+function formatPrice(value: number, locale: Locale): string {
+  return new Intl.NumberFormat(locale === "ro" ? "ro-RO" : "en-GB", {
+    style: "currency",
+    currency: "RON",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(value);
 }
 
-function formatDate(
-  value: string,
-  locale: "ro" | "en",
-): string {
-  const [year, month, day] = value
-    .split("-")
-    .map(Number);
+function formatDate(value: string, locale: Locale): string {
+  const [year, month, day] = value.split("-").map(Number);
+  const date = new Date(year, month - 1, day);
 
-  const date = new Date(
-    year,
-    month - 1,
-    day,
-  );
-
-  return new Intl.DateTimeFormat(
-    locale === "ro" ? "ro-RO" : "en-GB",
-    {
-      day: "2-digit",
-      month: "long",
-      year: "numeric",
-    },
-  ).format(date);
+  return new Intl.DateTimeFormat(locale === "ro" ? "ro-RO" : "en-GB", {
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+  }).format(date);
 }
 
-function formatDateTime(
-  value: string,
-  locale: "ro" | "en",
-): string {
+function formatDateTime(value: string, locale: Locale): string {
   const date = new Date(value);
 
-  return new Intl.DateTimeFormat(
-    locale === "ro" ? "ro-RO" : "en-GB",
-    {
-      day: "2-digit",
-      month: "long",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    },
-  ).format(date);
+  return new Intl.DateTimeFormat(locale === "ro" ? "ro-RO" : "en-GB", {
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
 }
 
 function getPaymentAmount(
@@ -81,23 +167,15 @@ function getPaymentAmount(
   depositAmount: number,
   remainingAmount: number,
 ): number {
-  return paymentType === "DEPOSIT"
-    ? depositAmount
-    : remainingAmount;
+  return paymentType === "DEPOSIT" ? depositAmount : remainingAmount;
 }
 
 export function PaymentPageClient() {
-  const params = useParams<{
-    locale?: string;
-  }>();
-
+  const params = useParams<{ locale?: string }>();
   const searchParams = useSearchParams();
-
-  const locale =
-    params.locale === "en" ? "en" : "ro";
-
-  const token =
-    searchParams.get("token")?.trim() ?? "";
+  const locale: Locale = params.locale === "en" ? "en" : "ro";
+  const content = PAYMENT_PAGE_CONTENT[locale];
+  const token = searchParams.get("token")?.trim() ?? "";
 
   const {
     reservation,
@@ -117,10 +195,7 @@ export function PaymentPageClient() {
     useState<PublicPaymentType | null>(null);
 
   const selectedAmount = useMemo(() => {
-    if (
-      !reservation ||
-      !selectedPaymentType
-    ) {
+    if (!reservation || !selectedPaymentType) {
       return 0;
     }
 
@@ -129,93 +204,100 @@ export function PaymentPageClient() {
       reservation.depositAmount,
       reservation.remainingAmount,
     );
-  }, [
-    reservation,
-    selectedPaymentType,
-  ]);
+  }, [reservation, selectedPaymentType]);
+
+  const remainingAtResort = useMemo(() => {
+    if (!reservation || selectedPaymentType !== "DEPOSIT") {
+      return 0;
+    }
+
+    return Math.max(
+      reservation.remainingAmount - reservation.depositAmount,
+      0,
+    );
+  }, [reservation, selectedPaymentType]);
 
   async function handleContinueToCheckout() {
-    if (
-      !token ||
-      !reservation ||
-      !selectedPaymentType
-    ) {
+    if (!token || !reservation || !selectedPaymentType) {
       return;
     }
 
     await startCheckout({
       token,
-      paymentType:
-        selectedPaymentType,
+      paymentType: selectedPaymentType,
     });
   }
 
   if (isLoadingReservation) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-[#050505] px-6 text-[#f5f2eb]">
-        <div className="text-center">
+      <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#050505] px-6 text-[#f5f2eb]">
+        <Image
+          src="/hero-mockup.jpg"
+          alt=""
+          fill
+          priority
+          sizes="100vw"
+          className="object-cover object-center opacity-20"
+        />
+
+        <div className="absolute inset-0 bg-black/75" />
+
+        <div className="relative z-10 text-center">
           <div className="mx-auto h-12 w-12 animate-spin rounded-full border border-gold border-t-transparent" />
 
-          <p className="mt-7 text-[10px] uppercase tracking-[0.35em] text-white/40">
-            {locale === "en"
-              ? "Loading payment details"
-              : "Se încarcă detaliile plății"}
+          <p className="mt-7 text-[10px] uppercase tracking-[0.35em] text-white/45">
+            {content.loading}
           </p>
         </div>
       </main>
     );
   }
 
-  if (
-    paymentAccessError ||
-    !reservation
-  ) {
+  if (paymentAccessError || !reservation) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-[#050505] px-6 py-20 text-[#f5f2eb]">
-        <section className="w-full max-w-2xl border border-red-300/20 bg-[#0b0b0b] px-8 py-16 text-center md:px-12">
+      <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#050505] px-6 py-20 text-[#f5f2eb]">
+        <Image
+          src="/hero-mockup.jpg"
+          alt=""
+          fill
+          priority
+          sizes="100vw"
+          className="object-cover object-center opacity-25"
+        />
+
+        <div className="absolute inset-0 bg-black/80" />
+
+        <section className="relative z-10 w-full max-w-2xl border border-red-300/20 bg-black/55 px-8 py-16 text-center backdrop-blur-md md:px-12">
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full border border-red-300/30 text-red-200">
             <LockKeyhole className="h-6 w-6" />
           </div>
 
           <p className="mt-8 text-[10px] uppercase tracking-[0.35em] text-red-200">
-            {locale === "en"
-              ? "Payment unavailable"
-              : "Plată indisponibilă"}
+            {content.unavailableEyebrow}
           </p>
 
           <h1 className="heading mt-5 text-5xl font-light md:text-7xl">
-            {locale === "en"
-              ? "This payment link cannot be used."
-              : "Acest link de plată nu poate fi folosit."}
+            {content.unavailableTitle}
           </h1>
 
           <p className="mx-auto mt-7 max-w-xl text-sm leading-8 text-white/45">
-            {paymentAccessError ??
-              (locale === "en"
-                ? "The payment link is invalid or has expired."
-                : "Linkul de plată este invalid sau a expirat.")}
+            {paymentAccessError ?? content.unavailableFallback}
           </p>
 
           <div className="mt-10 flex flex-col justify-center gap-3 sm:flex-row">
             <button
               type="button"
-              onClick={() =>
-                void refresh()
-              }
+              onClick={() => void refresh()}
               className="border border-white/15 px-8 py-4 text-[10px] uppercase tracking-[0.28em] text-white/55 transition hover:border-gold hover:text-gold"
             >
-              {locale === "en"
-                ? "Try again"
-                : "Încearcă din nou"}
+              {content.tryAgain}
             </button>
 
             <Link
               href={`/${locale}`}
               className="bg-gold px-8 py-4 text-[10px] font-semibold uppercase tracking-[0.28em] text-black transition hover:bg-white"
             >
-              {locale === "en"
-                ? "Return home"
-                : "Înapoi la pagina principală"}
+              {content.returnHome}
             </Link>
           </div>
         </section>
@@ -224,17 +306,36 @@ export function PaymentPageClient() {
   }
 
   return (
-    <main className="min-h-screen bg-[#050505] text-[#f5f2eb]">
-      <header className="border-b border-white/10 px-6 py-7 md:px-10">
+    <main className="relative min-h-screen overflow-hidden bg-[#050505] text-[#f5f2eb]">
+      <div className="absolute inset-x-0 top-0 h-[560px] overflow-hidden">
+        <Image
+          src="/hero-mockup.jpg"
+          alt=""
+          fill
+          priority
+          sizes="100vw"
+          className="object-cover object-center opacity-40"
+        />
+
+        <div className="absolute inset-0 bg-black/60" />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-[#050505]/55 to-[#050505]" />
+        <div className="absolute inset-0 bg-gradient-to-r from-black/30 via-transparent to-black/30" />
+      </div>
+
+      <header className="relative z-20 border-b border-white/10 px-6 py-6 md:px-10">
         <div className="mx-auto flex max-w-[1450px] items-center justify-between gap-6">
-          <Link href={`/${locale}`}>
+          <Link
+            href={`/${locale}`}
+            aria-label="Sunshine Resort"
+            className="inline-block"
+          >
             <Image
               src="/logo-sunshine.png"
               alt="Sunshine Resort"
-              width={130}
-              height={78}
+              width={150}
+              height={90}
               priority
-              className="h-auto w-[110px] md:w-[130px]"
+              className="h-auto w-[118px] brightness-0 invert transition-opacity duration-300 hover:opacity-80 md:w-[138px]"
             />
           </Link>
 
@@ -242,378 +343,306 @@ export function PaymentPageClient() {
             <LockKeyhole className="h-4 w-4 text-gold" />
 
             <div>
-              <p className="text-[9px] uppercase tracking-[0.3em] text-white/35">
-                {locale === "en"
-                  ? "Secure payment"
-                  : "Plată securizată"}
+              <p className="text-[9px] uppercase tracking-[0.3em] text-white/40">
+                {content.securePayment}
               </p>
 
-              <p className="mt-1 text-xs text-white/60">
-                Stripe Checkout
+              <p className="mt-1 text-xs text-white/65">
+                {content.secureCheckout}
               </p>
             </div>
           </div>
         </div>
       </header>
 
-      <section className="px-6 py-16 md:px-10 md:py-24">
+      <section className="relative z-10 px-6 pb-20 pt-16 md:px-10 md:pb-28 md:pt-20">
         <div className="mx-auto max-w-[1450px]">
-          <div className="max-w-4xl">
-            <p className="text-[10px] uppercase tracking-[0.42em] text-gold">
-              {locale === "en"
-                ? "Reservation payment"
-                : "Plata rezervării"}
+          <div className="max-w-5xl">
+            <p className="text-[10px] font-medium uppercase tracking-[0.45em] text-gold">
+              {content.eyebrow}
             </p>
 
-            <h1 className="heading mt-5 text-5xl font-light leading-tight md:text-7xl">
-              {locale === "en"
-                ? `Welcome, ${reservation.guestFirstName}.`
-                : `Bine ai venit, ${reservation.guestFirstName}.`}
+            <h1 className="heading mt-6 max-w-5xl text-5xl font-light leading-[0.98] tracking-[-0.015em] sm:text-6xl md:text-7xl lg:text-[5.5rem]">
+              {content.titlePrefix}.
             </h1>
 
-            <p className="mt-6 max-w-2xl text-sm leading-8 text-white/45">
-              {locale === "en"
-                ? "Review your reservation and choose how you would like to complete the payment."
-                : "Verifică detaliile rezervării și alege modalitatea în care dorești să efectuezi plata."}
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-5">
+              <p className="text-[9px] uppercase tracking-[0.3em] text-white/35 sm:text-[10px]">
+                {content.reservationFor}
+              </p>
+
+              <span className="hidden h-px w-10 bg-gold/50 sm:block" />
+
+              <p className="heading text-2xl font-light text-white/85 sm:text-3xl">
+                {reservation.guestFirstName}
+              </p>
+            </div>
+
+            <p className="mt-7 max-w-2xl text-sm leading-8 text-white/55 sm:text-[15px] md:text-base md:leading-9">
+              {content.description}
             </p>
           </div>
 
-          <div className="mt-14 grid items-start gap-8 xl:grid-cols-[minmax(0,1fr)_430px]">
+          <div className="mt-14 grid items-start gap-8 xl:grid-cols-[minmax(0,1fr)_440px] xl:gap-10">
             <div className="space-y-8">
-              <section className="border border-white/10 bg-[#0b0b0b]">
-                <div className="border-b border-white/10 px-7 py-6 md:px-9">
-                  <p className="text-[10px] uppercase tracking-[0.32em] text-gold">
-                    {locale === "en"
-                      ? "Your stay"
-                      : "Sejurul tău"}
-                  </p>
+              <section className="overflow-hidden border border-white/10 bg-black/45 backdrop-blur-md">
+                <div className="flex flex-col gap-6 border-b border-white/10 px-7 py-7 md:flex-row md:items-end md:justify-between md:px-9">
+                  <div>
+                    <p className="text-[10px] uppercase tracking-[0.32em] text-gold">
+                      {content.yourStay}
+                    </p>
 
-                  <h2 className="heading mt-3 text-3xl font-light">
-                    {locale === "en"
-                      ? "Reservation details"
-                      : "Detaliile rezervării"}
-                  </h2>
+                    <h2 className="heading mt-3 text-3xl font-light sm:text-4xl">
+                      {content.reservationDetails}
+                    </h2>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    <span className="border border-white/10 px-3 py-2 text-[8px] uppercase tracking-[0.22em] text-white/45 sm:text-[9px]">
+                      {content.adultsOnly}
+                    </span>
+
+                    <span className="border border-gold/30 px-3 py-2 text-[8px] uppercase tracking-[0.22em] text-gold/80 sm:text-[9px]">
+                      {content.directBooking}
+                    </span>
+                  </div>
                 </div>
 
-                <div className="grid gap-8 px-7 py-8 md:grid-cols-2 md:px-9">
+                <div className="grid gap-x-10 gap-y-9 px-7 py-9 md:grid-cols-2 md:px-9 md:py-10">
                   <div className="flex items-start gap-4">
-                    <CalendarDays className="mt-1 h-5 w-5 shrink-0 text-gold" />
-
+                    <CalendarDays className="mt-1 h-5 w-5 shrink-0 text-gold stroke-[1.4]" />
                     <div>
-                      <p className="text-xs text-white/35">
-                        Check-in
+                      <p className="text-xs text-white/35">{content.checkIn}</p>
+                      <p className="mt-2 text-sm text-white/85 sm:text-[15px]">
+                        {formatDate(reservation.checkIn, locale)}
                       </p>
+                      <p className="mt-1 text-xs text-white/30">14:00</p>
+                    </div>
+                  </div>
 
-                      <p className="mt-2 text-sm text-white/80">
-                        {formatDate(
-                          reservation.checkIn,
-                          locale,
-                        )}
+                  <div className="flex items-start gap-4">
+                    <CalendarDays className="mt-1 h-5 w-5 shrink-0 text-gold stroke-[1.4]" />
+                    <div>
+                      <p className="text-xs text-white/35">{content.checkOut}</p>
+                      <p className="mt-2 text-sm text-white/85 sm:text-[15px]">
+                        {formatDate(reservation.checkOut, locale)}
                       </p>
+                      <p className="mt-1 text-xs text-white/30">10:00</p>
+                    </div>
+                  </div>
 
-                      <p className="mt-1 text-xs text-white/30">
-                        14:00
+                  <div className="flex items-start gap-4">
+                    <Moon className="mt-1 h-5 w-5 shrink-0 text-gold stroke-[1.4]" />
+                    <div>
+                      <p className="text-xs text-white/35">{content.duration}</p>
+                      <p className="mt-2 text-sm text-white/85 sm:text-[15px]">
+                        {reservation.nights} {reservation.nights === 1 ? content.night : content.nights}
                       </p>
                     </div>
                   </div>
 
                   <div className="flex items-start gap-4">
-                    <CalendarDays className="mt-1 h-5 w-5 shrink-0 text-gold" />
-
+                    <Users className="mt-1 h-5 w-5 shrink-0 text-gold stroke-[1.4]" />
                     <div>
-                      <p className="text-xs text-white/35">
-                        Check-out
-                      </p>
-
-                      <p className="mt-2 text-sm text-white/80">
-                        {formatDate(
-                          reservation.checkOut,
-                          locale,
-                        )}
-                      </p>
-
-                      <p className="mt-1 text-xs text-white/30">
-                        10:00
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start gap-4">
-                    <Moon className="mt-1 h-5 w-5 shrink-0 text-gold" />
-
-                    <div>
-                      <p className="text-xs text-white/35">
-                        {locale === "en"
-                          ? "Duration"
-                          : "Durată"}
-                      </p>
-
-                      <p className="mt-2 text-sm text-white/80">
-                        {reservation.nights}{" "}
-                        {locale === "en"
-                          ? reservation.nights === 1
-                            ? "night"
-                            : "nights"
-                          : reservation.nights === 1
-                            ? "noapte"
-                            : "nopți"}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start gap-4">
-                    <Users className="mt-1 h-5 w-5 shrink-0 text-gold" />
-
-                    <div>
-                      <p className="text-xs text-white/35">
-                        {locale === "en"
-                          ? "Guests"
-                          : "Oaspeți"}
-                      </p>
-
-                      <p className="mt-2 text-sm text-white/80">
-                        {reservation.adults}{" "}
-                        {locale === "en"
-                          ? "adults"
-                          : "adulți"}
+                      <p className="text-xs text-white/35">{content.guests}</p>
+                      <p className="mt-2 text-sm text-white/85 sm:text-[15px]">
+                        {reservation.adults} {content.adults}
                       </p>
                     </div>
                   </div>
                 </div>
 
-                <div className="border-t border-white/10 px-7 py-7 md:px-9">
+                <div className="border-t border-white/10 px-7 py-8 md:px-9">
                   <p className="text-[9px] uppercase tracking-[0.28em] text-white/30">
-                    {locale === "en"
-                      ? "Apartments"
-                      : "Apartamente"}
+                    {content.apartments}
                   </p>
 
                   <div className="mt-5 space-y-3">
-                    {reservation.roomNames.map(
-                      (roomName, index) => (
-                        <div
-                          key={`${roomName}-${index}`}
-                          className="flex items-center justify-between gap-6 border border-white/10 bg-[#050505] px-5 py-4"
-                        >
-                          <span className="text-sm text-white/70">
-                            {roomName}
-                          </span>
-
-                          <Check className="h-4 w-4 text-gold" />
-                        </div>
-                      ),
-                    )}
+                    {reservation.roomNames.map((roomName, index) => (
+                      <div
+                        key={`${roomName}-${index}`}
+                        className="flex items-center justify-between gap-6 border border-white/10 bg-black/35 px-5 py-4"
+                      >
+                        <span className="text-sm text-white/75">{roomName}</span>
+                        <Check className="h-4 w-4 text-gold stroke-[1.5]" />
+                      </div>
+                    ))}
                   </div>
                 </div>
               </section>
 
-              <section className="border border-white/10 bg-[#0b0b0b] px-7 py-7 md:px-9">
-                <div className="flex items-start gap-4">
-                  <Clock3 className="mt-1 h-5 w-5 shrink-0 text-gold" />
+              <section className="relative overflow-hidden border border-gold/20 bg-[#15120c]/75 px-7 py-8 backdrop-blur-md md:px-9">
+                <div className="pointer-events-none absolute right-0 top-0 h-40 w-40 translate-x-1/3 -translate-y-1/3 rounded-full bg-gold/[0.06] blur-3xl" />
+
+                <div className="relative flex items-start gap-5">
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center border border-gold/30 text-gold">
+                    <Clock3 className="h-5 w-5 stroke-[1.35]" />
+                  </span>
 
                   <div>
                     <p className="text-[10px] uppercase tracking-[0.3em] text-gold">
-                      {locale === "en"
-                        ? "Payment deadline"
-                        : "Termen de plată"}
+                      {content.paymentDeadline}
                     </p>
 
-                    <p className="mt-3 text-sm leading-7 text-white/65">
-                      {locale === "en"
-                        ? "Payment must be completed before"
-                        : "Plata trebuie efectuată până la"}{" "}
-                      <span className="text-white">
-                        {formatDateTime(
-                          reservation.paymentExpiresAt,
-                          locale,
-                        )}
-                      </span>
-                      .
+                    <p className="mt-4 text-sm leading-7 text-white/55">
+                      {content.paymentDeadlinePrefix}
+                    </p>
+
+                    <p className="heading mt-2 text-2xl font-light text-white sm:text-3xl">
+                      {formatDateTime(reservation.paymentExpiresAt, locale)}
+                    </p>
+
+                    <p className="mt-3 text-xs leading-6 text-white/35">
+                      {content.paymentDeadlineSuffix}
                     </p>
                   </div>
                 </div>
               </section>
             </div>
 
-            <aside className="border border-white/10 bg-[#0b0b0b] p-7 xl:sticky xl:top-8 md:p-9">
+            <aside className="border border-white/10 bg-black/55 p-7 backdrop-blur-md md:p-9 xl:sticky xl:top-8">
               <p className="text-[10px] uppercase tracking-[0.32em] text-gold">
-                {locale === "en"
-                  ? "Payment"
-                  : "Plată"}
+                {content.payment}
               </p>
 
-              <h2 className="heading mt-3 text-4xl font-light">
-                {locale === "en"
-                  ? "Choose an option"
-                  : "Alege o opțiune"}
+              <h2 className="heading mt-3 max-w-sm text-4xl font-light leading-[1.05]">
+                {content.chooseOption}
               </h2>
 
               <div className="mt-8 space-y-3">
-                {reservation.availablePaymentTypes.includes(
-                  "DEPOSIT",
-                ) && (
+                {reservation.availablePaymentTypes.includes("DEPOSIT") && (
                   <button
                     type="button"
-                    disabled={
-                      isCreatingCheckout
-                    }
+                    disabled={isCreatingCheckout}
                     onClick={() => {
                       clearError();
-                      setSelectedPaymentType(
-                        "DEPOSIT",
-                      );
+                      setSelectedPaymentType("DEPOSIT");
                     }}
-                    className={`w-full border p-5 text-left transition ${
-                      selectedPaymentType ===
-                      "DEPOSIT"
-                        ? "border-gold bg-gold/5"
-                        : "border-white/10 bg-[#050505] hover:border-white/25"
+                    className={`relative w-full overflow-hidden border p-5 text-left transition duration-500 ${
+                      selectedPaymentType === "DEPOSIT"
+                        ? "border-gold bg-gold/[0.07]"
+                        : "border-white/10 bg-black/30 hover:border-white/25"
                     }`}
                   >
+                    {selectedPaymentType === "DEPOSIT" && (
+                      <div className="absolute inset-y-0 left-0 w-px bg-gold" />
+                    )}
+
                     <div className="flex items-start justify-between gap-6">
                       <div>
-                        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-white/75">
-                          {locale === "en"
-                            ? "Minimum deposit"
-                            : "Avans minim"}
-                        </p>
+                        <div className="flex flex-wrap items-center gap-3">
+                          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-white/80">
+                            {content.minimumDeposit}
+                          </p>
+                        </div>
 
-                        <p className="mt-2 text-xs leading-6 text-white/35">
-                          {locale === "en"
-                            ? "Pay 50% now and the remaining balance at the resort."
-                            : "Achită acum 50%, iar diferența poate fi plătită la locație."}
+                        <p className="mt-3 text-xs leading-6 text-white/40">
+                          {content.minimumDepositDescription}
                         </p>
                       </div>
 
                       <span
                         className={`mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${
-                          selectedPaymentType ===
-                          "DEPOSIT"
+                          selectedPaymentType === "DEPOSIT"
                             ? "border-gold"
                             : "border-white/20"
                         }`}
                       >
-                        {selectedPaymentType ===
-                          "DEPOSIT" && (
+                        {selectedPaymentType === "DEPOSIT" && (
                           <span className="h-2 w-2 rounded-full bg-gold" />
                         )}
                       </span>
                     </div>
 
-                    <p className="heading mt-5 text-3xl text-gold">
-                      {formatPrice(
-                        reservation.depositAmount,
-                        locale,
-                      )}
+                    <p className="heading mt-6 text-3xl text-gold">
+                      {formatPrice(reservation.depositAmount, locale)}
                     </p>
                   </button>
                 )}
 
-                {reservation.availablePaymentTypes.includes(
-                  "FULL",
-                ) && (
+                {reservation.availablePaymentTypes.includes("FULL") && (
                   <button
                     type="button"
-                    disabled={
-                      isCreatingCheckout
-                    }
+                    disabled={isCreatingCheckout}
                     onClick={() => {
                       clearError();
-                      setSelectedPaymentType(
-                        "FULL",
-                      );
+                      setSelectedPaymentType("FULL");
                     }}
-                    className={`w-full border p-5 text-left transition ${
-                      selectedPaymentType ===
-                      "FULL"
-                        ? "border-gold bg-gold/5"
-                        : "border-white/10 bg-[#050505] hover:border-white/25"
+                    className={`relative w-full overflow-hidden border p-5 text-left transition duration-500 ${
+                      selectedPaymentType === "FULL"
+                        ? "border-gold bg-gold/[0.07]"
+                        : "border-white/10 bg-black/30 hover:border-white/25"
                     }`}
                   >
+                    {selectedPaymentType === "FULL" && (
+                      <div className="absolute inset-y-0 left-0 w-px bg-gold" />
+                    )}
+
                     <div className="flex items-start justify-between gap-6">
                       <div>
-                        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-white/75">
-                          {locale === "en"
-                            ? "Full payment"
-                            : "Plată integrală"}
+                        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-white/80">
+                          {content.fullPayment}
                         </p>
 
-                        <p className="mt-2 text-xs leading-6 text-white/35">
-                          {locale === "en"
-                            ? "Complete the full payment securely online."
-                            : "Achită integral rezervarea prin plata online securizată."}
+                        <p className="mt-3 text-xs leading-6 text-white/40">
+                          {content.fullPaymentDescription}
                         </p>
                       </div>
 
                       <span
                         className={`mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${
-                          selectedPaymentType ===
-                          "FULL"
+                          selectedPaymentType === "FULL"
                             ? "border-gold"
                             : "border-white/20"
                         }`}
                       >
-                        {selectedPaymentType ===
-                          "FULL" && (
+                        {selectedPaymentType === "FULL" && (
                           <span className="h-2 w-2 rounded-full bg-gold" />
                         )}
                       </span>
                     </div>
 
-                    <p className="heading mt-5 text-3xl text-gold">
-                      {formatPrice(
-                        reservation.remainingAmount,
-                        locale,
-                      )}
+                    <p className="heading mt-6 text-3xl text-gold">
+                      {formatPrice(reservation.remainingAmount, locale)}
                     </p>
                   </button>
                 )}
               </div>
 
-              <div className="mt-8 space-y-4 border-y border-white/10 py-6 text-sm">
-                <div className="flex items-center justify-between gap-6 text-white/40">
-                  <span>
-                    {locale === "en"
-                      ? "Reservation total"
-                      : "Total rezervare"}
-                  </span>
+              <div className="mt-8 border-y border-white/10 py-6">
+                <div className="space-y-4 text-sm">
+                  <div className="flex items-center justify-between gap-6 text-white/40">
+                    <span>{content.reservationTotal}</span>
+                    <span className="text-white/80">
+                      {formatPrice(reservation.totalPrice, locale)}
+                    </span>
+                  </div>
 
-                  <span className="text-white/75">
-                    {formatPrice(
-                      reservation.totalPrice,
-                      locale,
-                    )}
-                  </span>
+                  <div className="flex items-center justify-between gap-6 text-white/40">
+                    <span>{content.alreadyPaid}</span>
+                    <span className="text-white/80">
+                      {formatPrice(reservation.paidAmount, locale)}
+                    </span>
+                  </div>
+
+                  {selectedPaymentType === "DEPOSIT" && (
+                    <div className="flex items-center justify-between gap-6 text-white/40">
+                      <span>{content.remainingAtResort}</span>
+                      <span className="text-white/80">
+                        {formatPrice(remainingAtResort, locale)}
+                      </span>
+                    </div>
+                  )}
                 </div>
 
-                <div className="flex items-center justify-between gap-6 text-white/40">
-                  <span>
-                    {locale === "en"
-                      ? "Already paid"
-                      : "Deja achitat"}
-                  </span>
-
-                  <span className="text-white/75">
-                    {formatPrice(
-                      reservation.paidAmount,
-                      locale,
-                    )}
-                  </span>
-                </div>
-
-                <div className="flex items-end justify-between gap-6 border-t border-white/10 pt-5">
+                <div className="mt-6 flex items-end justify-between gap-6 border-t border-white/10 pt-6">
                   <span className="text-[10px] uppercase tracking-[0.25em] text-white/40">
-                    {locale === "en"
-                      ? "Selected payment"
-                      : "Plată selectată"}
+                    {content.selectedPayment}
                   </span>
 
                   <span className="heading text-3xl text-gold">
                     {selectedPaymentType
-                      ? formatPrice(
-                          selectedAmount,
-                          locale,
-                        )
+                      ? formatPrice(selectedAmount, locale)
                       : "—"}
                   </span>
                 </div>
@@ -630,34 +659,28 @@ export function PaymentPageClient() {
 
               <button
                 type="button"
-                disabled={
-                  !selectedPaymentType ||
-                  isCreatingCheckout
-                }
-                onClick={() =>
-                  void handleContinueToCheckout()
-                }
-                className="mt-8 flex w-full items-center justify-center gap-3 bg-gold px-7 py-5 text-[10px] font-semibold uppercase tracking-[0.28em] text-black transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-35"
+                disabled={!selectedPaymentType || isCreatingCheckout}
+                onClick={() => void handleContinueToCheckout()}
+                className="group mt-8 flex min-h-[62px] w-full items-center justify-center gap-3 bg-gold px-7 py-5 text-[10px] font-semibold uppercase tracking-[0.28em] text-black transition duration-500 hover:bg-white disabled:cursor-not-allowed disabled:opacity-35"
               >
-                <CreditCard className="h-4 w-4" />
-
-                {isCreatingCheckout
-                  ? locale === "en"
-                    ? "Redirecting..."
-                    : "Se deschide plata..."
-                  : locale === "en"
-                    ? "Continue to secure payment"
-                    : "Continuă către plata securizată"}
+                <WalletCards className="h-4 w-4 transition-transform duration-500 group-hover:-translate-y-0.5" />
+                {isCreatingCheckout ? content.redirecting : content.continue}
               </button>
 
-              <div className="mt-6 flex items-start gap-3">
-                <LockKeyhole className="mt-0.5 h-4 w-4 shrink-0 text-white/25" />
+              <div className="mt-6 space-y-4">
+                <div className="flex items-start gap-3">
+                  <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-gold/70" />
+                  <p className="text-xs leading-6 text-white/35">
+                    {content.stripeNotice}
+                  </p>
+                </div>
 
-                <p className="text-xs leading-6 text-white/30">
-                  {locale === "en"
-                    ? "Payment is processed securely by Stripe. Sunshine Resort does not store your card details."
-                    : "Plata este procesată securizat prin Stripe. Sunshine Resort nu stochează datele cardului tău."}
-                </p>
+                <div className="flex items-start gap-3">
+                  <CreditCard className="mt-0.5 h-4 w-4 shrink-0 text-white/25" />
+                  <p className="text-xs leading-6 text-white/30">
+                    {content.acceptedPayments}
+                  </p>
+                </div>
               </div>
             </aside>
           </div>

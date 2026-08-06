@@ -131,7 +131,7 @@ export function PoolStorySection() {
                   }
                 </span>
 
-                <span className="mt-2 block text-gold">
+                <span className="mt-2 block text-white">
                   {
                     content.titleLineTwo
                   }

@@ -2,18 +2,49 @@
 
 import {
   useMemo,
+  useRef,
   useState,
 } from "react";
-import { useParams } from "next/navigation";
 
-import { publicRooms } from "@/data/rooms";
-import { useAvailability } from "@/hooks/useAvailability";
-import { useCreateReservation } from "@/hooks/useCreateReservation";
+import {
+  ArrowUp,
+} from "lucide-react";
 
-import { AvailabilitySearch } from "./AvailabilitySearch";
-import { BookingHeader } from "./BookingHeader";
-import { BookingSummary } from "./BookingSummary";
-import { BookingSuccess } from "./BookingSuccess";
+import {
+  useParams,
+} from "next/navigation";
+
+import {
+  FadeIn,
+} from "@/components/animations/FadeIn";
+
+import {
+  publicRooms,
+} from "@/data/rooms";
+
+import {
+  useAvailability,
+} from "@/hooks/useAvailability";
+
+import {
+  useCreateReservation,
+} from "@/hooks/useCreateReservation";
+
+import {
+  AvailabilitySearch,
+} from "./AvailabilitySearch";
+
+import {
+  BookingHeader,
+} from "./BookingHeader";
+
+import {
+  BookingSummary,
+} from "./BookingSummary";
+
+import {
+  BookingSuccess,
+} from "./BookingSuccess";
 
 import {
   GuestDetailsForm,
@@ -32,35 +63,83 @@ const FALLBACK_ROOM_IMAGE =
   "/hero-mockup.jpg";
 
 const initialGuest: GuestDetails = {
-  firstName: "",
-  lastName: "",
-  email: "",
-  phone: "",
-  message: "",
-  acceptedTerms: false,
+  firstName:
+    "",
+
+  lastName:
+    "",
+
+  email:
+    "",
+
+  phone:
+    "",
+
+  message:
+    "",
+
+  acceptedTerms:
+    false,
 };
+
+const BOOKING_PAGE_CONTENT = {
+  ro: {
+    availabilityEyebrow:
+      "Disponibilitate",
+
+    noAvailabilityTitle:
+      "Nu există apartamente disponibile.",
+
+    noAvailabilityDescription:
+      "Selectează o altă perioadă pentru a verifica disponibilitatea.",
+
+    chooseAnotherPeriod:
+      "Alege altă perioadă",
+  },
+
+  en: {
+    availabilityEyebrow:
+      "Availability",
+
+    noAvailabilityTitle:
+      "No apartments are available.",
+
+    noAvailabilityDescription:
+      "Select another period to check availability.",
+
+    chooseAnotherPeriod:
+      "Choose another period",
+  },
+} as const;
 
 function calculateNights(
   checkIn: string,
   checkOut: string,
 ): number {
-  if (!checkIn || !checkOut) {
+  if (
+    !checkIn ||
+    !checkOut
+  ) {
     return 0;
   }
 
-  const start = new Date(
-    `${checkIn}T12:00:00`,
-  );
+  const start =
+    new Date(
+      `${checkIn}T12:00:00`,
+    );
 
-  const end = new Date(
-    `${checkOut}T12:00:00`,
-  );
+  const end =
+    new Date(
+      `${checkOut}T12:00:00`,
+    );
 
   return Math.max(
     0,
     Math.round(
-      (end.getTime() -
-        start.getTime()) /
+      (
+        end.getTime() -
+        start.getTime()
+      ) /
         86_400_000,
     ),
   );
@@ -122,46 +201,77 @@ export function BookingPageClient() {
       ? "en"
       : "ro";
 
+  const content =
+    BOOKING_PAGE_CONTENT[
+      locale
+    ];
+
+  const availabilitySectionRef =
+    useRef<HTMLElement | null>(
+      null,
+    );
+
+  const resultsSectionRef =
+    useRef<HTMLDivElement | null>(
+      null,
+    );
+
   const [
     checkIn,
     setCheckIn,
-  ] = useState("");
+  ] =
+    useState("");
 
   const [
     checkOut,
     setCheckOut,
-  ] = useState("");
+  ] =
+    useState("");
 
   const [
     searched,
     setSearched,
-  ] = useState(false);
+  ] =
+    useState(false);
 
   const [
     submitted,
     setSubmitted,
-  ] = useState(false);
+  ] =
+    useState(false);
 
   const [
     validationError,
     setValidationError,
-  ] = useState("");
+  ] =
+    useState("");
 
   const [
     selectedRooms,
     setSelectedRooms,
-  ] = useState<
-    Record<string, number>
-  >({});
+  ] =
+    useState<
+      Record<
+        string,
+        number
+      >
+    >({});
 
   const [
     selectedExtraAdults,
     setSelectedExtraAdults,
-  ] = useState<
-    Record<string, number>
-  >({});
+  ] =
+    useState<
+      Record<
+        string,
+        number
+      >
+    >({});
 
-  const [guest, setGuest] =
+  const [
+    guest,
+    setGuest,
+  ] =
     useState<GuestDetails>(
       initialGuest,
     );
@@ -174,7 +284,8 @@ export function BookingPageClient() {
       isCheckingAvailability,
     searchAvailability,
     resetAvailability,
-  } = useAvailability();
+  } =
+    useAvailability();
 
   const {
     reservation,
@@ -184,19 +295,21 @@ export function BookingPageClient() {
       isCreatingReservation,
     submitReservation,
     resetReservation,
-  } = useCreateReservation();
+  } =
+    useCreateReservation();
 
-  const nights = useMemo(
-    () =>
-      calculateNights(
+  const nights =
+    useMemo(
+      () =>
+        calculateNights(
+          checkIn,
+          checkOut,
+        ),
+      [
         checkIn,
         checkOut,
-      ),
-    [
-      checkIn,
-      checkOut,
-    ],
-  );
+      ],
+    );
 
   const minimumNights =
     useMemo(
@@ -204,24 +317,31 @@ export function BookingPageClient() {
         getMinimumNightsForCheckIn(
           checkIn,
         ),
-      [checkIn],
+      [
+        checkIn,
+      ],
     );
 
   const availableRooms =
-    useMemo<
-      BookingRoom[]
-    >(() => {
-      if (!availability) {
-        return [];
-      }
+  useMemo<
+    BookingRoom[]
+  >(() => {
+    if (!availability) {
+      return [];
+    }
 
-      return availability.roomTypes
-        .filter(
-          (roomType) =>
-            roomType.availableUnits >
-            0,
-        )
-        .map((roomType) => {
+    return availability.roomTypes
+      .filter(
+        (
+          roomType,
+        ) =>
+          roomType.availableUnits >
+          0,
+      )
+      .map(
+        (
+          roomType,
+        ) => {
           const normalizedBackendSlug =
             normalizeRoomSlug(
               roomType.slug,
@@ -229,7 +349,9 @@ export function BookingPageClient() {
 
           const publicContent =
             publicRooms.find(
-              (room) =>
+              (
+                room,
+              ) =>
                 normalizeRoomSlug(
                   room.slug,
                 ) ===
@@ -243,7 +365,10 @@ export function BookingPageClient() {
 
           const fallbackDescription =
             publicContent
-              ?.shortDescription ??
+              ?.content[
+                locale
+              ]
+              .shortDescription ??
             "";
 
           return {
@@ -303,11 +428,12 @@ export function BookingPageClient() {
             nightlyRates:
               roomType.nightlyRates,
           };
-        });
-    }, [
-      availability,
-      locale,
-    ]);
+        },
+      );
+  }, [
+    availability,
+    locale,
+  ]);
 
   const selectedRoomCount =
     useMemo(
@@ -323,31 +449,108 @@ export function BookingPageClient() {
             quantity,
           0,
         ),
-      [selectedRooms],
+      [
+        selectedRooms,
+      ],
     );
 
   const canSubmit =
     searched &&
-    availability !== null &&
+    availability !==
+      null &&
     nights >=
       minimumNights &&
-    selectedRoomCount > 0 &&
+    selectedRoomCount >
+      0 &&
     guest.firstName
-      .trim().length > 0 &&
+      .trim()
+      .length >
+      0 &&
     guest.lastName
-      .trim().length > 0 &&
+      .trim()
+      .length >
+      0 &&
     guest.email
-      .trim().length > 0 &&
+      .trim()
+      .length >
+      0 &&
     guest.phone
-      .trim().length > 0 &&
+      .trim()
+      .length >
+      0 &&
     guest.acceptedTerms &&
     !isCreatingReservation;
 
+  function scrollToAvailability() {
+    const section =
+      availabilitySectionRef.current;
+
+    if (!section) {
+      return;
+    }
+
+    section.scrollIntoView({
+      behavior:
+        "smooth",
+
+      block:
+        "start",
+    });
+  }
+
+  function scrollToResults() {
+    window.requestAnimationFrame(
+      () => {
+        window.requestAnimationFrame(
+          () => {
+            const resultsSection =
+              resultsSectionRef.current;
+
+            if (
+              !resultsSection
+            ) {
+              return;
+            }
+
+            const targetTop =
+              resultsSection
+                .getBoundingClientRect()
+                .top +
+              window.scrollY -
+              80;
+
+            window.scrollTo({
+              top:
+                targetTop,
+
+              left:
+                0,
+
+              behavior:
+                "smooth",
+            });
+          },
+        );
+      },
+    );
+  }
+
   function resetSearchResults() {
-    setSearched(false);
-    setValidationError("");
-    setSelectedRooms({});
-    setSelectedExtraAdults({});
+    setSearched(
+      false,
+    );
+
+    setValidationError(
+      "",
+    );
+
+    setSelectedRooms(
+      {},
+    );
+
+    setSelectedExtraAdults(
+      {},
+    );
 
     resetAvailability();
     resetReservation();
@@ -356,8 +559,13 @@ export function BookingPageClient() {
   function handleCheckInChange(
     value: string,
   ) {
-    setCheckIn(value);
-    setCheckOut("");
+    setCheckIn(
+      value,
+    );
+
+    setCheckOut(
+      "",
+    );
 
     resetSearchResults();
   }
@@ -365,7 +573,9 @@ export function BookingPageClient() {
   function handleCheckOutChange(
     value: string,
   ) {
-    setCheckOut(value);
+    setCheckOut(
+      value,
+    );
 
     resetSearchResults();
   }
@@ -376,12 +586,15 @@ export function BookingPageClient() {
       !checkOut
     ) {
       setValidationError(
-        locale === "en"
+        locale ===
+        "en"
           ? "Select the arrival and departure dates."
           : "Selectează data sosirii și data plecării.",
       );
 
-      setSearched(false);
+      setSearched(
+        false,
+      );
 
       return;
     }
@@ -411,12 +624,15 @@ export function BookingPageClient() {
       tomorrow
     ) {
       setValidationError(
-        locale === "en"
+        locale ===
+        "en"
           ? "Reservations can begin no earlier than tomorrow."
           : "Rezervările pot începe cel mai devreme de mâine.",
       );
 
-      setSearched(false);
+      setSearched(
+        false,
+      );
 
       return;
     }
@@ -426,41 +642,62 @@ export function BookingPageClient() {
       minimumNights
     ) {
       setValidationError(
-        minimumNights === 2
-          ? locale === "en"
+        minimumNights ===
+          2
+          ? locale ===
+            "en"
             ? "For arrivals on Friday or Saturday, the minimum stay is 2 nights."
             : "Pentru sosirile de vineri sau sâmbătă, sejurul minim este de 2 nopți."
-          : locale === "en"
+          : locale ===
+              "en"
             ? "The minimum stay is one night."
             : "Sejurul minim este de o noapte.",
       );
 
-      setSearched(false);
+      setSearched(
+        false,
+      );
 
       return;
     }
 
-    setValidationError("");
-    setSelectedRooms({});
-    setSelectedExtraAdults({});
+    setValidationError(
+      "",
+    );
+
+    setSelectedRooms(
+      {},
+    );
+
+    setSelectedExtraAdults(
+      {},
+    );
 
     resetReservation();
 
     const response =
-      await searchAvailability({
-        checkIn,
-        checkOut,
-        adults:
-          DEFAULT_ADULTS_PER_ROOM,
-      });
+      await searchAvailability(
+        {
+          checkIn,
+          checkOut,
+          adults:
+            DEFAULT_ADULTS_PER_ROOM,
+        },
+      );
 
     if (!response) {
-      setSearched(false);
+      setSearched(
+        false,
+      );
 
       return;
     }
 
-    setSearched(true);
+    setSearched(
+      true,
+    );
+
+    scrollToResults();
   }
 
   function handleRoomQuantityChange(
@@ -468,22 +705,33 @@ export function BookingPageClient() {
     quantity: number,
   ) {
     setSelectedRooms(
-      (current) => ({
+      (
+        current,
+      ) => ({
         ...current,
-        [slug]: quantity,
+
+        [slug]:
+          quantity,
       }),
     );
 
     const selectedRoom =
       availableRooms.find(
-        (room) =>
-          room.slug === slug,
+        (
+          room,
+        ) =>
+          room.slug ===
+          slug,
       );
 
     setSelectedExtraAdults(
-      (current) => {
+      (
+        current,
+      ) => {
         const currentValue =
-          current[slug] ?? 0;
+          current[
+            slug
+          ] ?? 0;
 
         const maximum =
           selectedRoom
@@ -495,15 +743,20 @@ export function BookingPageClient() {
 
         return {
           ...current,
-          [slug]: Math.min(
-            currentValue,
-            maximum,
-          ),
+
+          [slug]:
+            Math.min(
+              currentValue,
+              maximum,
+            ),
         };
       },
     );
 
-    setValidationError("");
+    setValidationError(
+      "",
+    );
+
     resetReservation();
   }
 
@@ -513,11 +766,16 @@ export function BookingPageClient() {
   ) {
     const selectedRoom =
       availableRooms.find(
-        (room) =>
-          room.slug === slug,
+        (
+          room,
+        ) =>
+          room.slug ===
+          slug,
       );
 
-    if (!selectedRoom) {
+    if (
+      !selectedRoom
+    ) {
       return;
     }
 
@@ -542,14 +800,20 @@ export function BookingPageClient() {
       );
 
     setSelectedExtraAdults(
-      (current) => ({
+      (
+        current,
+      ) => ({
         ...current,
+
         [slug]:
           normalizedQuantity,
       }),
     );
 
-    setValidationError("");
+    setValidationError(
+      "",
+    );
+
     resetReservation();
   }
 
@@ -559,7 +823,8 @@ export function BookingPageClient() {
       !canSubmit
     ) {
       setValidationError(
-        locale === "en"
+        locale ===
+        "en"
           ? "Complete all required fields and select at least one apartment."
           : "Completează toate câmpurile obligatorii și selectează cel puțin un apartament.",
       );
@@ -569,54 +834,63 @@ export function BookingPageClient() {
 
     const rooms =
       availableRooms
-        .map((room) => {
-          const quantity =
-            selectedRooms[
-              room.slug
-            ] ?? 0;
+        .map(
+          (
+            room,
+          ) => {
+            const quantity =
+              selectedRooms[
+                room.slug
+              ] ?? 0;
 
-          const maximumExtraAdults =
-            Math.min(
+            const maximumExtraAdults =
+              Math.min(
+                quantity,
+                room.availableExtraAdultUnits,
+              );
+
+            const extraAdultQuantity =
+              Math.max(
+                0,
+                Math.min(
+                  selectedExtraAdults[
+                    room.slug
+                  ] ?? 0,
+                  maximumExtraAdults,
+                ),
+              );
+
+            return {
+              roomTypeId:
+                room.roomTypeId,
+
               quantity,
-              room.availableExtraAdultUnits,
-            );
 
-          const extraAdultQuantity =
-            Math.max(
-              0,
-              Math.min(
-                selectedExtraAdults[
-                  room.slug
-                ] ?? 0,
-                maximumExtraAdults,
-              ),
-            );
+              adultsPerRoom:
+                Math.min(
+                  DEFAULT_ADULTS_PER_ROOM,
+                  room.maxAdults,
+                ),
 
-          return {
-            roomTypeId:
-              room.roomTypeId,
-
-            quantity,
-
-            adultsPerRoom:
-              Math.min(
-                DEFAULT_ADULTS_PER_ROOM,
-                room.maxAdults,
-              ),
-
-            extraAdultQuantity,
-          };
-        })
+              extraAdultQuantity,
+            };
+          },
+        )
         .filter(
-          (room) =>
-            room.quantity > 0,
+          (
+            room,
+          ) =>
+            room.quantity >
+            0,
         );
 
     if (
-      rooms.length === 0
+      rooms.length ===
+      0
     ) {
       setValidationError(
-        locale === "en"
+        locale ===
+        "en"
           ? "Select at least one apartment."
           : "Selectează cel puțin un apartament.",
       );
@@ -624,47 +898,54 @@ export function BookingPageClient() {
       return;
     }
 
-    setValidationError("");
+    setValidationError(
+      "",
+    );
 
     const response =
-      await submitReservation({
-        checkIn:
-          availability.checkIn,
+      await submitReservation(
+        {
+          checkIn:
+            availability.checkIn,
 
-        checkOut:
-          availability.checkOut,
+          checkOut:
+            availability.checkOut,
 
-        locale:
-          locale === "en"
-            ? "EN"
-            : "RO",
+          locale:
+            locale ===
+            "en"
+              ? "EN"
+              : "RO",
 
-        guest: {
-          firstName:
-            guest.firstName.trim(),
+          guest: {
+            firstName:
+              guest.firstName.trim(),
 
-          lastName:
-            guest.lastName.trim(),
+            lastName:
+              guest.lastName.trim(),
 
-          email:
-            guest.email.trim(),
+            email:
+              guest.email.trim(),
 
-          phone:
-            guest.phone.trim(),
+            phone:
+              guest.phone.trim(),
+          },
+
+          rooms,
+
+          guestNotes:
+            guest.message.trim() ||
+            undefined,
         },
-
-        rooms,
-
-        guestNotes:
-          guest.message.trim() ||
-          undefined,
-      });
+      );
 
     if (!response) {
       return;
     }
 
-    setSubmitted(true);
+    setSubmitted(
+      true,
+    );
   }
 
   if (
@@ -691,11 +972,20 @@ export function BookingPageClient() {
     <main className="bg-[#050505] text-[#f5f2eb]">
       <BookingHeader />
 
-      <section className="px-6 py-28 md:px-8 md:py-36">
+      <section
+        ref={
+          availabilitySectionRef
+        }
+        className="scroll-mt-20 px-6 py-24 md:px-8 md:py-32"
+      >
         <div className="mx-auto max-w-[1260px]">
           <AvailabilitySearch
-            checkIn={checkIn}
-            checkOut={checkOut}
+            checkIn={
+              checkIn
+            }
+            checkOut={
+              checkOut
+            }
             onCheckInChange={
               handleCheckInChange
             }
@@ -713,109 +1003,143 @@ export function BookingPageClient() {
           {displayedError && (
             <p
               role="alert"
-              className="mt-5 text-sm text-red-400"
+              className="mt-5 border-l border-red-400/70 pl-4 text-sm leading-7 text-red-300"
             >
-              {displayedError}
+              {
+                displayedError
+              }
             </p>
           )}
 
           {searched &&
             availability && (
-              <>
+              <div
+                ref={
+                  resultsSectionRef
+                }
+                className="scroll-mt-20"
+              >
                 {availableRooms.length ===
                 0 ? (
-                  <section className="mt-20 border border-white/10 bg-[#0b0b0b] px-8 py-20 text-center">
-                    <p className="text-xs uppercase tracking-[0.45em] text-gold">
-                      {locale ===
-                      "en"
-                        ? "Availability"
-                        : "Disponibilitate"}
-                    </p>
+                  <FadeIn
+                    distance={
+                      30
+                    }
+                  >
+                    <section className="mt-16 border border-white/10 bg-[#0b0b0b] px-6 py-16 text-center sm:px-8 md:py-20">
+                      <p className="text-[9px] font-medium uppercase tracking-[0.45em] text-gold sm:text-[10px] md:text-xs">
+                        {
+                          content.availabilityEyebrow
+                        }
+                      </p>
 
-                    <h2 className="heading mt-6 text-4xl font-light md:text-6xl">
-                      {locale ===
-                      "en"
-                        ? "No apartments are available."
-                        : "Nu există apartamente disponibile."}
-                    </h2>
+                      <h2 className="heading mx-auto mt-6 max-w-3xl text-4xl font-light leading-[1.05] tracking-[-0.015em] sm:text-5xl md:text-6xl">
+                        {
+                          content.noAvailabilityTitle
+                        }
+                      </h2>
 
-                    <p className="mx-auto mt-6 max-w-xl text-sm leading-8 text-white/50">
-                      {locale ===
-                      "en"
-                        ? "Select another period to check availability."
-                        : "Selectează o altă perioadă pentru a verifica disponibilitatea."}
-                    </p>
-                  </section>
+                      <div className="mx-auto mt-8 h-px w-16 bg-gold/70" />
+
+                      <p className="mx-auto mt-8 max-w-xl text-sm leading-8 text-white/50 sm:text-[15px] md:text-base">
+                        {
+                          content.noAvailabilityDescription
+                        }
+                      </p>
+
+                      <button
+                        type="button"
+                        onClick={
+                          scrollToAvailability
+                        }
+                        className="group mt-10 inline-flex min-h-12 items-center justify-center gap-4 border border-gold px-8 py-3.5 text-[9px] font-semibold uppercase tracking-[0.28em] text-gold transition duration-500 hover:bg-gold hover:text-black sm:px-10 sm:text-[10px]"
+                      >
+                        <ArrowUp className="h-3.5 w-3.5 transition-transform duration-500 group-hover:-translate-y-1" />
+
+                        {
+                          content.chooseAnotherPeriod
+                        }
+                      </button>
+                    </section>
+                  </FadeIn>
                 ) : (
-                  <div className="mt-28 grid items-start gap-16 xl:grid-cols-[1fr_390px]">
-                    <div className="space-y-24">
-                      <RoomSelection
-                        rooms={
-                          availableRooms
-                        }
-                        selectedRooms={
-                          selectedRooms
-                        }
-                        selectedExtraAdults={
-                          selectedExtraAdults
-                        }
-                        onQuantityChange={
-                          handleRoomQuantityChange
-                        }
-                        onExtraAdultQuantityChange={
-                          handleExtraAdultQuantityChange
-                        }
-                      />
+                  <FadeIn
+                    distance={
+                      32
+                    }
+                  >
+                    <div className="mt-16 grid items-start gap-14 xl:grid-cols-[minmax(0,1fr)_370px]">
+                      <div className="space-y-20">
+                        <RoomSelection
+                          rooms={
+                            availableRooms
+                          }
+                          selectedRooms={
+                            selectedRooms
+                          }
+                          selectedExtraAdults={
+                            selectedExtraAdults
+                          }
+                          onQuantityChange={
+                            handleRoomQuantityChange
+                          }
+                          onExtraAdultQuantityChange={
+                            handleExtraAdultQuantityChange
+                          }
+                        />
 
-                      <GuestDetailsForm
-                        guest={
-                          guest
-                        }
-                        onChange={(
-                          updatedGuest,
-                        ) => {
-                          setGuest(
+                        <GuestDetailsForm
+                          guest={
+                            guest
+                          }
+                          onChange={(
                             updatedGuest,
-                          );
+                          ) => {
+                            setGuest(
+                              updatedGuest,
+                            );
 
-                          setValidationError(
-                            "",
-                          );
+                            setValidationError(
+                              "",
+                            );
 
-                          resetReservation();
-                        }}
-                      />
+                            resetReservation();
+                          }}
+                        />
+                      </div>
+
+                      <div className="xl:sticky xl:top-24">
+                        <BookingSummary
+                          checkIn={
+                            availability.checkIn
+                          }
+                          checkOut={
+                            availability.checkOut
+                          }
+                          nights={
+                            availability.nights
+                          }
+                          rooms={
+                            availableRooms
+                          }
+                          selectedRooms={
+                            selectedRooms
+                          }
+                          selectedExtraAdults={
+                            selectedExtraAdults
+                          }
+                          canSubmit={
+                            canSubmit
+                          }
+                          onSubmit={
+                            handleSubmitReservation
+                          }
+                        />
+                      </div>
                     </div>
-
-                    <BookingSummary
-                      checkIn={
-                        availability.checkIn
-                      }
-                      checkOut={
-                        availability.checkOut
-                      }
-                      nights={
-                        availability.nights
-                      }
-                      rooms={
-                        availableRooms
-                      }
-                      selectedRooms={
-                        selectedRooms
-                      }
-                      selectedExtraAdults={
-                        selectedExtraAdults
-                      }
-                      canSubmit={
-                        canSubmit
-                      }
-                      onSubmit={
-                        handleSubmitReservation
-                      }
-                    />
-                  </div>
+                  </FadeIn>
                 )}
-              </>
+              </div>
             )}
         </div>
       </section>
