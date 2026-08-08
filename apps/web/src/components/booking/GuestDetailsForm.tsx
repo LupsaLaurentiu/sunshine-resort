@@ -160,14 +160,16 @@ export function GuestDetailsForm({
     ];
 
   const termsHref =
-    locale === "ro"
-      ? "/ro/termeni-si-conditii"
-      : "/en/terms-and-conditions";
+    getPublicHref(
+      "terms",
+      locale,
+    );
 
   const privacyHref =
-    locale === "ro"
-      ? "/ro/gdpr"
-      : "/en/gdpr";
+    getPublicHref(
+      "privacyPolicy",
+      locale,
+    );
 
   function updateField<
     K extends keyof GuestDetails,
@@ -225,17 +227,24 @@ export function GuestDetailsForm({
               type="text"
               autoComplete="given-name"
               required
-              value={guest.firstName}
-              onChange={(event) =>
+              value={
+                guest.firstName
+              }
+              onChange={(
+                event,
+              ) =>
                 updateField(
                   "firstName",
-                  event.target.value,
+                  event.target
+                    .value,
                 )
               }
               placeholder={
                 content.firstNamePlaceholder
               }
-              className={inputClassName}
+              className={
+                inputClassName
+              }
             />
           </div>
 
@@ -253,17 +262,24 @@ export function GuestDetailsForm({
               type="text"
               autoComplete="family-name"
               required
-              value={guest.lastName}
-              onChange={(event) =>
+              value={
+                guest.lastName
+              }
+              onChange={(
+                event,
+              ) =>
                 updateField(
                   "lastName",
-                  event.target.value,
+                  event.target
+                    .value,
                 )
               }
               placeholder={
                 content.lastNamePlaceholder
               }
-              className={inputClassName}
+              className={
+                inputClassName
+              }
             />
           </div>
 
@@ -282,17 +298,24 @@ export function GuestDetailsForm({
               autoComplete="email"
               inputMode="email"
               required
-              value={guest.email}
-              onChange={(event) =>
+              value={
+                guest.email
+              }
+              onChange={(
+                event,
+              ) =>
                 updateField(
                   "email",
-                  event.target.value,
+                  event.target
+                    .value,
                 )
               }
               placeholder={
                 content.emailPlaceholder
               }
-              className={inputClassName}
+              className={
+                inputClassName
+              }
             />
           </div>
 
@@ -311,17 +334,24 @@ export function GuestDetailsForm({
               autoComplete="tel"
               inputMode="tel"
               required
-              value={guest.phone}
-              onChange={(event) =>
+              value={
+                guest.phone
+              }
+              onChange={(
+                event,
+              ) =>
                 updateField(
                   "phone",
-                  event.target.value,
+                  event.target
+                    .value,
                 )
               }
               placeholder={
                 content.phonePlaceholder
               }
-              className={inputClassName}
+              className={
+                inputClassName
+              }
             />
           </div>
         </div>
@@ -329,20 +359,29 @@ export function GuestDetailsForm({
         <div className="group mt-8">
           <label
             htmlFor="booking-message"
-            className={labelClassName}
+            className={
+              labelClassName
+            }
           >
-            {content.messageLabel}
+            {
+              content.messageLabel
+            }
           </label>
 
           <textarea
             id="booking-message"
             name="message"
             rows={5}
-            value={guest.message}
-            onChange={(event) =>
+            value={
+              guest.message
+            }
+            onChange={(
+              event,
+            ) =>
               updateField(
                 "message",
-                event.target.value,
+                event.target
+                  .value,
               )
             }
             placeholder={
@@ -365,10 +404,13 @@ export function GuestDetailsForm({
               checked={
                 guest.acceptedTerms
               }
-              onChange={(event) =>
+              onChange={(
+                event,
+              ) =>
                 updateField(
                   "acceptedTerms",
-                  event.target.checked,
+                  event.target
+                    .checked,
                 )
               }
               className="peer h-5 w-5 cursor-pointer appearance-none border border-white/25 bg-transparent transition duration-300 checked:border-gold checked:bg-gold focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-gold"
@@ -378,23 +420,43 @@ export function GuestDetailsForm({
           </span>
 
           <span className="text-xs leading-7 text-white/45 sm:text-[13px]">
-            {content.termsPrefix}{" "}
+            {
+              content.termsPrefix
+            }{" "}
+
             <Link
-              href={termsHref}
+              href={
+                termsHref
+              }
               target="_blank"
+              rel="noopener noreferrer"
               className="text-white/75 underline decoration-white/20 underline-offset-4 transition duration-300 hover:text-gold hover:decoration-gold/50"
             >
-              {content.terms}
+              {
+                content.terms
+              }
             </Link>{" "}
-            {content.privacyConnector}{" "}
+
+            {
+              content.privacyConnector
+            }{" "}
+
             <Link
-              href={privacyHref}
+              href={
+                privacyHref
+              }
               target="_blank"
+              rel="noopener noreferrer"
               className="text-white/75 underline decoration-white/20 underline-offset-4 transition duration-300 hover:text-gold hover:decoration-gold/50"
             >
-              {content.privacy}
+              {
+                content.privacy
+              }
             </Link>{" "}
-            {content.bookingConditions}
+
+            {
+              content.bookingConditions
+            }
           </span>
         </label>
       </div>
