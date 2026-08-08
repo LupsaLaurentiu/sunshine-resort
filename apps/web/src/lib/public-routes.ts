@@ -15,7 +15,9 @@ export type PublicRouteKey =
   | "gallery"
   | "about"
   | "contact"
-  | "book";
+  | "book"
+  | "privacyPolicy"
+  | "terms";
 
 export type PublicRouteDefinition = {
   internalPath: string;
@@ -60,40 +62,60 @@ export const PUBLIC_ROUTES: Record<
   },
 
   rooms: {
-    internalPath: "/rooms",
+    internalPath:
+      "/rooms",
 
     paths: {
-      ro: "/camere",
-      en: "/rooms",
+      ro:
+        "/camere",
+
+      en:
+        "/rooms",
     },
 
     labels: {
-      ro: "Camere",
-      en: "Rooms",
+      ro:
+        "Camere",
+
+      en:
+        "Rooms",
     },
 
     eyebrow: {
-      ro: "Apartamente",
-      en: "Apartments",
+      ro:
+        "Apartamente",
+
+      en:
+        "Apartments",
     },
   },
 
   facilities: {
-    internalPath: "/facilities",
+    internalPath:
+      "/facilities",
 
     paths: {
-      ro: "/facilitati",
-      en: "/facilities",
+      ro:
+        "/facilitati",
+
+      en:
+        "/facilities",
     },
 
     labels: {
-      ro: "Facilități",
-      en: "Facilities",
+      ro:
+        "Facilități",
+
+      en:
+        "Facilities",
     },
 
     eyebrow: {
-      ro: "Experiența resortului",
-      en: "The resort experience",
+      ro:
+        "Experiența resortului",
+
+      en:
+        "The resort experience",
     },
   },
 
@@ -102,119 +124,238 @@ export const PUBLIC_ROUTES: Record<
       "/salt-water-pool",
 
     paths: {
-      ro: "/piscina-cu-apa-sarata",
-      en: "/salt-water-pool",
+      ro:
+        "/piscina-cu-apa-sarata",
+
+      en:
+        "/salt-water-pool",
     },
 
     labels: {
-      ro: "Piscină cu apă sărată",
-      en: "Saltwater Pool",
+      ro:
+        "Piscină cu apă sărată",
+
+      en:
+        "Saltwater Pool",
     },
 
     eyebrow: {
-      ro: "Wellness",
-      en: "Wellness",
+      ro:
+        "Wellness",
+
+      en:
+        "Wellness",
     },
   },
 
   attractions: {
-    internalPath: "/attractions",
+    internalPath:
+      "/attractions",
 
     paths: {
-      ro: "/atractii-turistice",
-      en: "/attractions",
+      ro:
+        "/atractii-turistice",
+
+      en:
+        "/attractions",
     },
 
     labels: {
-      ro: "Atracții turistice",
-      en: "Local Attractions",
+      ro:
+        "Atracții turistice",
+
+      en:
+        "Local Attractions",
     },
 
     eyebrow: {
-      ro: "Descoperă împrejurimile",
-      en: "Explore the surroundings",
+      ro:
+        "Descoperă împrejurimile",
+
+      en:
+        "Explore the surroundings",
     },
   },
 
   gallery: {
-    internalPath: "/gallery",
+    internalPath:
+      "/gallery",
 
     paths: {
-      ro: "/galerie",
-      en: "/gallery",
+      ro:
+        "/galerie",
+
+      en:
+        "/gallery",
     },
 
     labels: {
-      ro: "Galerie",
-      en: "Gallery",
+      ro:
+        "Galerie",
+
+      en:
+        "Gallery",
     },
 
     eyebrow: {
-      ro: "Momente Sunshine",
-      en: "Sunshine moments",
+      ro:
+        "Momente Sunshine",
+
+      en:
+        "Sunshine moments",
     },
   },
 
   about: {
-    internalPath: "/about",
+    internalPath:
+      "/about",
 
     paths: {
-      ro: "/despre-noi",
-      en: "/about",
+      ro:
+        "/despre-noi",
+
+      en:
+        "/about",
     },
 
     labels: {
-      ro: "Despre noi",
-      en: "About Us",
+      ro:
+        "Despre noi",
+
+      en:
+        "About Us",
     },
 
     eyebrow: {
-      ro: "Povestea resortului",
-      en: "Our story",
+      ro:
+        "Povestea resortului",
+
+      en:
+        "Our story",
     },
   },
 
   contact: {
-    internalPath: "/contact",
+    internalPath:
+      "/contact",
 
     paths: {
-      ro: "/contact",
-      en: "/contact",
+      ro:
+        "/contact",
+
+      en:
+        "/contact",
     },
 
     labels: {
-      ro: "Contact",
-      en: "Contact",
+      ro:
+        "Contact",
+
+      en:
+        "Contact",
     },
 
     eyebrow: {
-      ro: "Suntem aici pentru tine",
-      en: "We are here for you",
+      ro:
+        "Suntem aici pentru tine",
+
+      en:
+        "We are here for you",
     },
   },
 
   book: {
-    internalPath: "/book",
+    internalPath:
+      "/book",
 
     paths: {
-      ro: "/rezerva",
-      en: "/book",
+      ro:
+        "/rezerva",
+
+      en:
+        "/book",
     },
 
     labels: {
-      ro: "Rezervă",
-      en: "Book",
+      ro:
+        "Rezervă",
+
+      en:
+        "Book",
     },
 
     eyebrow: {
-      ro: "Rezervare directă",
-      en: "Book direct",
+      ro:
+        "Rezervare directă",
+
+      en:
+        "Book direct",
+    },
+  },
+
+  privacyPolicy: {
+    internalPath:
+      "/privacy-policy",
+
+    paths: {
+      ro:
+        "/privacy-policy",
+
+      en:
+        "/privacy-policy",
+    },
+
+    labels: {
+      ro:
+        "Politica de confidențialitate",
+
+      en:
+        "Privacy Policy",
+    },
+
+    eyebrow: {
+      ro:
+        "Legal",
+
+      en:
+        "Legal",
+    },
+  },
+
+  terms: {
+    internalPath:
+      "/terms",
+
+    paths: {
+      ro:
+        "/terms",
+
+      en:
+        "/terms",
+    },
+
+    labels: {
+      ro:
+        "Termeni și condiții",
+
+      en:
+        "Terms & Conditions",
+    },
+
+    eyebrow: {
+      ro:
+        "Legal",
+
+      en:
+        "Legal",
     },
   },
 };
 
 export function isPublicLocale(
-  value: string | undefined,
+  value:
+    | string
+    | undefined,
 ): value is PublicLocale {
   return (
     value === "ro" ||
@@ -228,7 +369,9 @@ export function getLocaleFromPathname(
   const locale =
     pathname
       .split("/")
-      .filter(Boolean)[0];
+      .filter(
+        Boolean,
+      )[0];
 
   return locale === "en"
     ? "en"
@@ -236,20 +379,27 @@ export function getLocaleFromPathname(
 }
 
 export function getPublicHref(
-  routeKey: PublicRouteKey,
-  locale: PublicLocale,
+  routeKey:
+    PublicRouteKey,
+
+  locale:
+    PublicLocale,
 ): string {
   const localizedPath =
     PUBLIC_ROUTES[
       routeKey
-    ].paths[locale];
+    ].paths[
+      locale
+    ];
 
   return `/${locale}${localizedPath}`;
 }
 
 export function getPublicRoomHref(
   slug: string,
-  locale: PublicLocale,
+
+  locale:
+    PublicLocale,
 ): string {
   return `${getPublicHref(
     "rooms",
@@ -263,12 +413,18 @@ export function getPublicRouteKeyFromPathname(
   const segments =
     pathname
       .split("/")
-      .filter(Boolean);
+      .filter(
+        Boolean,
+      );
 
   const locale =
     segments[0];
 
-  if (!isPublicLocale(locale)) {
+  if (
+    !isPublicLocale(
+      locale,
+    )
+  ) {
     return null;
   }
 
@@ -290,14 +446,24 @@ export function getPublicRouteKeyFromPathname(
         ]
       >
     ).find(
-      ([, route]) =>
-        route.paths[locale] ===
+      (
+        [
+          ,
+          route,
+        ],
+      ) =>
+        route.paths[
+          locale
+        ] ===
           pathWithoutLocale ||
         route.internalPath ===
           pathWithoutLocale,
     );
 
-  return routeEntry?.[0] ?? null;
+  return (
+    routeEntry?.[0] ??
+    null
+  );
 }
 
 function getRoomSlugFromPathname(
@@ -306,16 +472,24 @@ function getRoomSlugFromPathname(
   const segments =
     pathname
       .split("/")
-      .filter(Boolean);
+      .filter(
+        Boolean,
+      );
 
   const locale =
     segments[0];
 
-  if (!isPublicLocale(locale)) {
+  if (
+    !isPublicLocale(
+      locale,
+    )
+  ) {
     return null;
   }
 
-  if (segments.length !== 3) {
+  if (
+    segments.length !== 3
+  ) {
     return null;
   }
 
@@ -324,8 +498,11 @@ function getRoomSlugFromPathname(
 
   const isPublicRoomsSegment =
     roomsSegment ===
-    PUBLIC_ROUTES.rooms
-      .paths[locale]
+    PUBLIC_ROUTES
+      .rooms
+      .paths[
+        locale
+      ]
       .replace(
         /^\//,
         "",
@@ -333,7 +510,8 @@ function getRoomSlugFromPathname(
 
   const isInternalRoomsSegment =
     roomsSegment ===
-    PUBLIC_ROUTES.rooms
+    PUBLIC_ROUTES
+      .rooms
       .internalPath
       .replace(
         /^\//,
@@ -355,14 +533,18 @@ function getRoomSlugFromPathname(
 
 export function getEquivalentLocaleHref(
   pathname: string,
-  targetLocale: PublicLocale,
+
+  targetLocale:
+    PublicLocale,
 ): string {
   const roomSlug =
     getRoomSlugFromPathname(
       pathname,
     );
 
-  if (roomSlug) {
+  if (
+    roomSlug
+  ) {
     return getPublicRoomHref(
       roomSlug,
       targetLocale,
@@ -374,7 +556,9 @@ export function getEquivalentLocaleHref(
       pathname,
     );
 
-  if (!routeKey) {
+  if (
+    !routeKey
+  ) {
     return `/${targetLocale}`;
   }
 
@@ -390,12 +574,18 @@ export function getInternalPathFromPublicPath(
   const segments =
     pathname
       .split("/")
-      .filter(Boolean);
+      .filter(
+        Boolean,
+      );
 
   const locale =
     segments[0];
 
-  if (!isPublicLocale(locale)) {
+  if (
+    !isPublicLocale(
+      locale,
+    )
+  ) {
     return null;
   }
 
@@ -404,7 +594,9 @@ export function getInternalPathFromPublicPath(
       pathname,
     );
 
-  if (roomSlug) {
+  if (
+    roomSlug
+  ) {
     return `/${locale}/rooms/${roomSlug}`;
   }
 
@@ -419,12 +611,18 @@ export function getInternalPathFromPublicPath(
     Object.values(
       PUBLIC_ROUTES,
     ).find(
-      (route) =>
-        route.paths[locale] ===
+      (
+        route,
+      ) =>
+        route.paths[
+          locale
+        ] ===
         publicPath,
     );
 
-  if (!routeEntry) {
+  if (
+    !routeEntry
+  ) {
     return null;
   }
 

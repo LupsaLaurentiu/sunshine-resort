@@ -96,10 +96,10 @@ const FOOTER_CONTENT = {
     legalLinks: [
       {
         label:
-          "GDPR",
+          "Politica de confidențialitate",
 
         href:
-          "/ro/gdpr",
+          "/ro/privacy-policy",
       },
 
       {
@@ -202,15 +202,15 @@ const FOOTER_CONTENT = {
     legalLinks: [
       {
         label:
-          "Privacy policy",
+          "Privacy Policy",
 
         href:
-          "/en/gdpr",
+          "/en/privacy-policy",
       },
 
       {
         label:
-          "Terms and conditions",
+          "Terms & Conditions",
 
         href:
           "/en/terms",
