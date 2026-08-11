@@ -34,7 +34,7 @@ const HERO_CONTENT = {
     eyebrow: "Adults Only",
     title: "Sunshine Resort",
     subtitle:
-      "Un refugiu boutique în mijlocul naturii",
+      "Un refugiu boutique în inima Maramureșului",
     explore:
       "Descoperă resortul",
     book:
@@ -51,7 +51,7 @@ const HERO_CONTENT = {
     eyebrow: "Adults Only",
     title: "Sunshine Resort",
     subtitle:
-      "A boutique retreat surrounded by nature",
+      "A boutique retreat in the heart of Maramureș",
     explore:
       "Explore the resort",
     book:
