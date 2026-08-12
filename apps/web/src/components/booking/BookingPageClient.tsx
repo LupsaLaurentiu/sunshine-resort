@@ -1,22 +1,29 @@
 "use client";
 
 import {
+  useEffect,
   useMemo,
   useRef,
   useState,
 } from "react";
 
 import {
+  ArrowRight,
   ArrowUp,
 } from "lucide-react";
 
 import {
   useParams,
+  useSearchParams,
 } from "next/navigation";
 
 import {
   FadeIn,
 } from "@/components/animations/FadeIn";
+
+import {
+  useSmoothScroll,
+} from "@/components/animations/SmoothScroll";
 
 import {
   publicRooms,
@@ -63,23 +70,12 @@ const FALLBACK_ROOM_IMAGE =
   "/hero-mockup.jpg";
 
 const initialGuest: GuestDetails = {
-  firstName:
-    "",
-
-  lastName:
-    "",
-
-  email:
-    "",
-
-  phone:
-    "",
-
-  message:
-    "",
-
-  acceptedTerms:
-    false,
+  firstName: "",
+  lastName: "",
+  email: "",
+  phone: "",
+  message: "",
+  acceptedTerms: false,
 };
 
 const BOOKING_PAGE_CONTENT = {
@@ -95,6 +91,39 @@ const BOOKING_PAGE_CONTENT = {
 
     chooseAnotherPeriod:
       "Alege altă perioadă",
+
+    invalidDates:
+      "Selectează data sosirii și data plecării.",
+
+    pastCheckIn:
+      "Rezervările pot începe cel mai devreme de mâine.",
+
+    minimumTwoNights:
+      "Pentru sosirile de vineri sau sâmbătă, sejurul minim este de 2 nopți.",
+
+    minimumOneNight:
+      "Sejurul minim este de o noapte.",
+
+    requestedRoomUnavailable:
+      "Apartamentul selectat anterior nu mai este disponibil pentru această perioadă. Poți alege un alt apartament disponibil.",
+
+    selectRoom:
+      "Selectează cel puțin un apartament.",
+
+    completeGuest:
+      "Completează datele oaspetelui înainte de a trimite cererea de rezervare.",
+
+    oneApartmentSelected:
+      "1 apartament selectat",
+
+    apartmentsSelected:
+      "apartamente selectate",
+
+    continue:
+      "Continuă",
+
+    continueAria:
+      "Continuă la datele oaspetelui",
   },
 
   en: {
@@ -109,6 +138,39 @@ const BOOKING_PAGE_CONTENT = {
 
     chooseAnotherPeriod:
       "Choose another period",
+
+    invalidDates:
+      "Select the arrival and departure dates.",
+
+    pastCheckIn:
+      "Reservations can begin no earlier than tomorrow.",
+
+    minimumTwoNights:
+      "For arrivals on Friday or Saturday, the minimum stay is 2 nights.",
+
+    minimumOneNight:
+      "The minimum stay is one night.",
+
+    requestedRoomUnavailable:
+      "The apartment selected on the previous page is no longer available for this stay. You can choose another available apartment.",
+
+    selectRoom:
+      "Select at least one apartment.",
+
+    completeGuest:
+      "Complete the guest details before submitting the reservation request.",
+
+    oneApartmentSelected:
+      "1 apartment selected",
+
+    apartmentsSelected:
+      "apartments selected",
+
+    continue:
+      "Continue",
+
+    continueAria:
+      "Continue to guest details",
   },
 } as const;
 
@@ -196,6 +258,14 @@ export function BookingPageClient() {
       locale?: string;
     }>();
 
+  const searchParams =
+    useSearchParams();
+
+  const {
+    lenis,
+  } =
+    useSmoothScroll();
+
   const locale =
     params.locale === "en"
       ? "en"
@@ -213,6 +283,19 @@ export function BookingPageClient() {
 
   const resultsSectionRef =
     useRef<HTMLDivElement | null>(
+      null,
+    );
+
+  const guestDetailsSectionRef =
+    useRef<HTMLDivElement | null>(
+      null,
+    );
+
+  const initialQueryHandledRef =
+    useRef(false);
+
+  const requestedRoomSlugRef =
+    useRef<string | null>(
       null,
     );
 
@@ -245,6 +328,24 @@ export function BookingPageClient() {
     setValidationError,
   ] =
     useState("");
+
+  const [
+    guestValidationError,
+    setGuestValidationError,
+  ] =
+    useState("");
+
+  /*
+   * Folosit pentru CTA-ul fixed de mobile/tablet.
+   *
+   * Când GuestDetailsForm intră în viewport,
+   * bara de continuare dispare.
+   */
+  const [
+    isGuestDetailsVisible,
+    setIsGuestDetailsVisible,
+  ] =
+    useState(false);
 
   const [
     selectedRooms,
@@ -323,117 +424,187 @@ export function BookingPageClient() {
     );
 
   const availableRooms =
-  useMemo<
-    BookingRoom[]
-  >(() => {
-    if (!availability) {
-      return [];
-    }
+    useMemo<
+      BookingRoom[]
+    >(
+      () => {
+        if (!availability) {
+          return [];
+        }
 
-    return availability.roomTypes
-      .filter(
-        (
-          roomType,
-        ) =>
-          roomType.availableUnits >
-          0,
-      )
-      .map(
-        (
-          roomType,
-        ) => {
-          const normalizedBackendSlug =
-            normalizeRoomSlug(
-              roomType.slug,
-            );
-
-          const publicContent =
-            publicRooms.find(
-              (
-                room,
-              ) =>
+        return availability.roomTypes
+          .filter(
+            (
+              roomType,
+            ) =>
+              roomType.availableUnits >
+              0,
+          )
+          .map(
+            (
+              roomType,
+            ) => {
+              const normalizedBackendSlug =
                 normalizeRoomSlug(
-                  room.slug,
-                ) ===
-                normalizedBackendSlug,
-            );
+                  roomType.slug,
+                );
 
-          const backendDescription =
-            locale === "en"
-              ? roomType.descriptionEn
-              : roomType.descriptionRo;
+              const publicContent =
+                publicRooms.find(
+                  (
+                    room,
+                  ) =>
+                    normalizeRoomSlug(
+                      room.slug,
+                    ) ===
+                    normalizedBackendSlug,
+                );
 
-          const fallbackDescription =
-            publicContent
-              ?.content[
-                locale
-              ]
-              .shortDescription ??
-            "";
+              const backendDescription =
+                locale === "en"
+                  ? roomType.descriptionEn
+                  : roomType.descriptionRo;
 
-          return {
-            roomTypeId:
-              roomType.id,
+              const fallbackDescription =
+                publicContent
+                  ?.content[
+                    locale
+                  ]
+                  .shortDescription ??
+                "";
 
-            slug:
-              roomType.slug,
+              return {
+                roomTypeId:
+                  roomType.id,
 
-            title:
-              locale === "en"
-                ? roomType.nameEn
-                : roomType.nameRo,
+                slug:
+                  roomType.slug,
 
-            description:
-              backendDescription?.trim() ||
-              fallbackDescription,
+                title:
+                  locale === "en"
+                    ? roomType.nameEn
+                    : roomType.nameRo,
 
-            image:
-              publicContent
-                ?.image ??
-              FALLBACK_ROOM_IMAGE,
+                description:
+                  backendDescription?.trim() ||
+                  fallbackDescription,
 
-            maxAdults:
-              roomType.maxAdults,
+                image:
+                  publicContent
+                    ?.image ??
+                  FALLBACK_ROOM_IMAGE,
 
-            maxExtraAdultsPerRoom:
-              roomType.maxExtraAdultsPerRoom,
+                maxAdults:
+                  roomType.maxAdults,
 
-            allowsExtraAdult:
-              roomType.allowsExtraAdult,
+                maxExtraAdultsPerRoom:
+                  roomType.maxExtraAdultsPerRoom,
 
-            availableExtraAdultUnits:
-              roomType.availableExtraAdultUnits,
+                allowsExtraAdult:
+                  roomType.allowsExtraAdult,
 
-            extraAdultPrice:
-              roomType.extraAdultPrice,
+                availableExtraAdultUnits:
+                  roomType.availableExtraAdultUnits,
 
-            sizeSqm:
-              roomType.sizeSqm,
+                extraAdultPrice:
+                  roomType.extraAdultPrice,
 
-            totalUnits:
-              roomType.totalUnits,
+                sizeSqm:
+                  roomType.sizeSqm,
 
-            availableUnits:
-              roomType.availableUnits,
+                totalUnits:
+                  roomType.totalUnits,
 
-            totalPrice:
-              roomType.totalPrice,
+                availableUnits:
+                  roomType.availableUnits,
 
-            averagePricePerNight:
-              roomType.averagePricePerNight,
+                totalPrice:
+                  roomType.totalPrice,
 
-            hasPromotion:
-              roomType.hasPromotion,
+                averagePricePerNight:
+                  roomType.averagePricePerNight,
 
-            nightlyRates:
-              roomType.nightlyRates,
-          };
-        },
+                hasPromotion:
+                  roomType.hasPromotion,
+
+                nightlyRates:
+                  roomType.nightlyRates,
+              };
+            },
+          );
+      },
+      [
+        availability,
+        locale,
+      ],
+    );
+
+  /*
+   * Preselectăm camera venită din pagina apartamentului.
+   */
+  useEffect(
+    () => {
+      const requestedRoomSlug =
+        requestedRoomSlugRef.current;
+
+      if (
+        !searched ||
+        !availability ||
+        !requestedRoomSlug
+      ) {
+        return;
+      }
+
+      const normalizedRequestedSlug =
+        normalizeRoomSlug(
+          requestedRoomSlug,
+        );
+
+      const requestedRoom =
+        availableRooms.find(
+          (
+            room,
+          ) =>
+            normalizeRoomSlug(
+              room.slug,
+            ) ===
+            normalizedRequestedSlug,
+        );
+
+      requestedRoomSlugRef.current =
+        null;
+
+      if (!requestedRoom) {
+        setValidationError(
+          content.requestedRoomUnavailable,
+        );
+
+        return;
+      }
+
+      setSelectedRooms(
+        (
+          current,
+        ) => ({
+          ...current,
+
+          [requestedRoom.slug]:
+            Math.max(
+              1,
+              current[
+                requestedRoom.slug
+              ] ?? 0,
+            ),
+        }),
       );
-  }, [
-    availability,
-    locale,
-  ]);
+    },
+    [
+      availability,
+      availableRooms,
+      content.requestedRoomUnavailable,
+      searched,
+    ],
+  );
 
   const selectedRoomCount =
     useMemo(
@@ -462,24 +633,118 @@ export function BookingPageClient() {
       minimumNights &&
     selectedRoomCount >
       0 &&
-    guest.firstName
-      .trim()
-      .length >
-      0 &&
-    guest.lastName
-      .trim()
-      .length >
-      0 &&
-    guest.email
-      .trim()
-      .length >
-      0 &&
-    guest.phone
-      .trim()
-      .length >
-      0 &&
-    guest.acceptedTerms &&
     !isCreatingReservation;
+
+  /*
+   * Observăm GuestDetailsForm.
+   *
+   * Când formularul intră suficient în viewport,
+   * CTA-ul fixed de jos dispare.
+   */
+  useEffect(
+    () => {
+      if (
+        !searched ||
+        !availability ||
+        availableRooms.length ===
+          0
+      ) {
+        setIsGuestDetailsVisible(
+          false,
+        );
+
+        return;
+      }
+
+      const target =
+        guestDetailsSectionRef.current;
+
+      if (!target) {
+        return;
+      }
+
+      const observer =
+        new IntersectionObserver(
+          (
+            entries,
+          ) => {
+            const entry =
+              entries[0];
+
+            setIsGuestDetailsVisible(
+              Boolean(
+                entry?.isIntersecting,
+              ),
+            );
+          },
+          {
+            /*
+             * Nu trebuie să fie vizibil întreg formularul.
+             * Este suficient să fi ajuns utilizatorul
+             * în zona lui.
+             */
+            threshold:
+              0.08,
+
+            rootMargin:
+              "0px 0px -15% 0px",
+          },
+        );
+
+      observer.observe(
+        target,
+      );
+
+      return () => {
+        observer.disconnect();
+      };
+    },
+    [
+      searched,
+      availability,
+      availableRooms.length,
+    ],
+  );
+
+  function scrollWithFallback(
+    target: HTMLElement,
+    offset: number,
+  ) {
+    if (lenis) {
+      lenis.scrollTo(
+        target,
+        {
+          offset,
+
+          duration:
+            1.15,
+        },
+      );
+
+      return;
+    }
+
+    const targetTop =
+      target
+        .getBoundingClientRect()
+        .top +
+      window.scrollY +
+      offset;
+
+    window.scrollTo({
+      top:
+        Math.max(
+          0,
+          targetTop,
+        ),
+
+      left:
+        0,
+
+      behavior:
+        "smooth",
+    });
+  }
 
   function scrollToAvailability() {
     const section =
@@ -489,13 +754,10 @@ export function BookingPageClient() {
       return;
     }
 
-    section.scrollIntoView({
-      behavior:
-        "smooth",
-
-      block:
-        "start",
-    });
+    scrollWithFallback(
+      section,
+      -80,
+    );
   }
 
   function scrollToResults() {
@@ -503,32 +765,39 @@ export function BookingPageClient() {
       () => {
         window.requestAnimationFrame(
           () => {
-            const resultsSection =
+            const section =
               resultsSectionRef.current;
 
-            if (
-              !resultsSection
-            ) {
+            if (!section) {
               return;
             }
 
-            const targetTop =
-              resultsSection
-                .getBoundingClientRect()
-                .top +
-              window.scrollY -
-              80;
+            scrollWithFallback(
+              section,
+              -80,
+            );
+          },
+        );
+      },
+    );
+  }
 
-            window.scrollTo({
-              top:
-                targetTop,
+  function scrollToGuestDetails() {
+    window.requestAnimationFrame(
+      () => {
+        window.requestAnimationFrame(
+          () => {
+            const section =
+              guestDetailsSectionRef.current;
 
-              left:
-                0,
+            if (!section) {
+              return;
+            }
 
-              behavior:
-                "smooth",
-            });
+            scrollWithFallback(
+              section,
+              -110,
+            );
           },
         );
       },
@@ -542,6 +811,14 @@ export function BookingPageClient() {
 
     setValidationError(
       "",
+    );
+
+    setGuestValidationError(
+      "",
+    );
+
+    setIsGuestDetailsVisible(
+      false,
     );
 
     setSelectedRooms(
@@ -580,23 +857,17 @@ export function BookingPageClient() {
     resetSearchResults();
   }
 
-  async function handleSearch() {
+  function validateSearchPeriod(
+    selectedCheckIn:
+      string,
+    selectedCheckOut:
+      string,
+  ): string | null {
     if (
-      !checkIn ||
-      !checkOut
+      !selectedCheckIn ||
+      !selectedCheckOut
     ) {
-      setValidationError(
-        locale ===
-        "en"
-          ? "Select the arrival and departure dates."
-          : "Selectează data sosirii și data plecării.",
-      );
-
-      setSearched(
-        false,
-      );
-
-      return;
+      return content.invalidDates;
     }
 
     const tomorrow =
@@ -614,44 +885,60 @@ export function BookingPageClient() {
         1,
     );
 
-    const selectedCheckIn =
+    const selectedCheckInDate =
       new Date(
-        `${checkIn}T12:00:00`,
+        `${selectedCheckIn}T12:00:00`,
       );
 
     if (
-      selectedCheckIn <
+      selectedCheckInDate <
       tomorrow
     ) {
-      setValidationError(
-        locale ===
-        "en"
-          ? "Reservations can begin no earlier than tomorrow."
-          : "Rezervările pot începe cel mai devreme de mâine.",
-      );
-
-      setSearched(
-        false,
-      );
-
-      return;
+      return content.pastCheckIn;
     }
 
+    const selectedNights =
+      calculateNights(
+        selectedCheckIn,
+        selectedCheckOut,
+      );
+
+    const selectedMinimumNights =
+      getMinimumNightsForCheckIn(
+        selectedCheckIn,
+      );
+
     if (
-      nights <
-      minimumNights
+      selectedNights <
+      selectedMinimumNights
     ) {
+      return selectedMinimumNights ===
+        2
+        ? content.minimumTwoNights
+        : content.minimumOneNight;
+    }
+
+    return null;
+  }
+
+  async function performAvailabilitySearch(
+    selectedCheckIn:
+      string,
+    selectedCheckOut:
+      string,
+    options?: {
+      scroll?: boolean;
+    },
+  ) {
+    const periodError =
+      validateSearchPeriod(
+        selectedCheckIn,
+        selectedCheckOut,
+      );
+
+    if (periodError) {
       setValidationError(
-        minimumNights ===
-          2
-          ? locale ===
-            "en"
-            ? "For arrivals on Friday or Saturday, the minimum stay is 2 nights."
-            : "Pentru sosirile de vineri sau sâmbătă, sejurul minim este de 2 nopți."
-          : locale ===
-              "en"
-            ? "The minimum stay is one night."
-            : "Sejurul minim este de o noapte.",
+        periodError,
       );
 
       setSearched(
@@ -665,6 +952,14 @@ export function BookingPageClient() {
       "",
     );
 
+    setGuestValidationError(
+      "",
+    );
+
+    setIsGuestDetailsVisible(
+      false,
+    );
+
     setSelectedRooms(
       {},
     );
@@ -676,14 +971,16 @@ export function BookingPageClient() {
     resetReservation();
 
     const response =
-      await searchAvailability(
-        {
-          checkIn,
-          checkOut,
-          adults:
-            DEFAULT_ADULTS_PER_ROOM,
-        },
-      );
+      await searchAvailability({
+        checkIn:
+          selectedCheckIn,
+
+        checkOut:
+          selectedCheckOut,
+
+        adults:
+          DEFAULT_ADULTS_PER_ROOM,
+      });
 
     if (!response) {
       setSearched(
@@ -697,7 +994,91 @@ export function BookingPageClient() {
       true,
     );
 
-    scrollToResults();
+    if (
+      options?.scroll !==
+      false
+    ) {
+      scrollToResults();
+    }
+  }
+
+  /*
+   * Preluăm perioada + camera din URL.
+   */
+  useEffect(
+    () => {
+      if (
+        initialQueryHandledRef.current
+      ) {
+        return;
+      }
+
+      initialQueryHandledRef.current =
+        true;
+
+      const initialCheckIn =
+        searchParams.get(
+          "checkIn",
+        );
+
+      const initialCheckOut =
+        searchParams.get(
+          "checkOut",
+        );
+
+      const initialRoomType =
+        searchParams.get(
+          "roomType",
+        );
+
+      if (initialRoomType) {
+        requestedRoomSlugRef.current =
+          initialRoomType;
+      }
+
+      if (
+        !initialCheckIn ||
+        !initialCheckOut
+      ) {
+        return;
+      }
+
+      setCheckIn(
+        initialCheckIn,
+      );
+
+      setCheckOut(
+        initialCheckOut,
+      );
+
+      void performAvailabilitySearch(
+        initialCheckIn,
+        initialCheckOut,
+      );
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  );
+
+  async function handleSearch() {
+    if (
+      !requestedRoomSlugRef.current
+    ) {
+      const requestedRoomType =
+        searchParams.get(
+          "roomType",
+        );
+
+      if (requestedRoomType) {
+        requestedRoomSlugRef.current =
+          requestedRoomType;
+      }
+    }
+
+    await performAvailabilitySearch(
+      checkIn,
+      checkOut,
+    );
   }
 
   function handleRoomQuantityChange(
@@ -757,6 +1138,10 @@ export function BookingPageClient() {
       "",
     );
 
+    setGuestValidationError(
+      "",
+    );
+
     resetReservation();
   }
 
@@ -773,9 +1158,7 @@ export function BookingPageClient() {
           slug,
       );
 
-    if (
-      !selectedRoom
-    ) {
+    if (!selectedRoom) {
       return;
     }
 
@@ -814,21 +1197,69 @@ export function BookingPageClient() {
       "",
     );
 
+    setGuestValidationError(
+      "",
+    );
+
     resetReservation();
   }
 
   async function handleSubmitReservation() {
+    if (!availability) {
+      return;
+    }
+
     if (
-      !availability ||
-      !canSubmit
+      selectedRoomCount <=
+      0
     ) {
-      setValidationError(
-        locale ===
-        "en"
-          ? "Complete all required fields and select at least one apartment."
-          : "Completează toate câmpurile obligatorii și selectează cel puțin un apartament.",
+      setGuestValidationError(
+        "",
       );
 
+      setValidationError(
+        content.selectRoom,
+      );
+
+      return;
+    }
+
+    const guestFormIncomplete =
+      guest.firstName
+        .trim()
+        .length ===
+        0 ||
+      guest.lastName
+        .trim()
+        .length ===
+        0 ||
+      guest.email
+        .trim()
+        .length ===
+        0 ||
+      guest.phone
+        .trim()
+        .length ===
+        0 ||
+      !guest.acceptedTerms;
+
+    if (guestFormIncomplete) {
+      setValidationError(
+        "",
+      );
+
+      setGuestValidationError(
+        content.completeGuest,
+      );
+
+      scrollToGuestDetails();
+
+      return;
+    }
+
+    if (
+      isCreatingReservation
+    ) {
       return;
     }
 
@@ -888,11 +1319,12 @@ export function BookingPageClient() {
       rooms.length ===
       0
     ) {
+      setGuestValidationError(
+        "",
+      );
+
       setValidationError(
-        locale ===
-        "en"
-          ? "Select at least one apartment."
-          : "Selectează cel puțin un apartament.",
+        content.selectRoom,
       );
 
       return;
@@ -902,42 +1334,43 @@ export function BookingPageClient() {
       "",
     );
 
+    setGuestValidationError(
+      "",
+    );
+
     const response =
-      await submitReservation(
-        {
-          checkIn:
-            availability.checkIn,
+      await submitReservation({
+        checkIn:
+          availability.checkIn,
 
-          checkOut:
-            availability.checkOut,
+        checkOut:
+          availability.checkOut,
 
-          locale:
-            locale ===
-            "en"
-              ? "EN"
-              : "RO",
+        locale:
+          locale === "en"
+            ? "EN"
+            : "RO",
 
-          guest: {
-            firstName:
-              guest.firstName.trim(),
+        guest: {
+          firstName:
+            guest.firstName.trim(),
 
-            lastName:
-              guest.lastName.trim(),
+          lastName:
+            guest.lastName.trim(),
 
-            email:
-              guest.email.trim(),
+          email:
+            guest.email.trim(),
 
-            phone:
-              guest.phone.trim(),
-          },
-
-          rooms,
-
-          guestNotes:
-            guest.message.trim() ||
-            undefined,
+          phone:
+            guest.phone.trim(),
         },
-      );
+
+        rooms,
+
+        guestNotes:
+          guest.message.trim() ||
+          undefined,
+      });
 
     if (!response) {
       return;
@@ -968,15 +1401,46 @@ export function BookingPageClient() {
     reservationError ||
     availabilityError;
 
+  /*
+   * CTA mobile/tablet:
+   *
+   * - trebuie să existe minimum o cameră selectată;
+   * - nu trebuie să fim deja în GuestDetailsForm.
+   */
+  const showMobileContinueBar =
+    searched &&
+    availability !==
+      null &&
+    availableRooms.length >
+      0 &&
+    selectedRoomCount >
+      0 &&
+    !isGuestDetailsVisible;
+
   return (
-    <main className="bg-[#050505] text-[#f5f2eb]">
+    <main
+      className={[
+        "bg-[#050505] text-[#f5f2eb]",
+
+        /*
+         * Pe mobile lăsăm puțin spațiu jos cât timp
+         * CTA-ul fixed este activ, astfel încât să nu
+         * acopere ultimul conținut din secțiunea de rooms.
+         */
+        showMobileContinueBar
+          ? "pb-24 xl:pb-0"
+          : "",
+      ].join(
+        " ",
+      )}
+    >
       <BookingHeader />
 
       <section
         ref={
           availabilitySectionRef
         }
-        className="scroll-mt-20 px-6 py-24 md:px-8 md:py-32"
+        className="px-6 py-24 md:px-8 md:py-32"
       >
         <div className="mx-auto max-w-[1260px]">
           <AvailabilitySearch
@@ -1017,7 +1481,6 @@ export function BookingPageClient() {
                 ref={
                   resultsSectionRef
                 }
-                className="scroll-mt-20"
               >
                 {availableRooms.length ===
                 0 ? (
@@ -1086,26 +1549,39 @@ export function BookingPageClient() {
                           onExtraAdultQuantityChange={
                             handleExtraAdultQuantityChange
                           }
-                        />
-
-                        <GuestDetailsForm
-                          guest={
-                            guest
+                          onContinueToGuestDetails={
+                            scrollToGuestDetails
                           }
-                          onChange={(
-                            updatedGuest,
-                          ) => {
-                            setGuest(
-                              updatedGuest,
-                            );
-
-                            setValidationError(
-                              "",
-                            );
-
-                            resetReservation();
-                          }}
                         />
+
+                        <div
+                          ref={
+                            guestDetailsSectionRef
+                          }
+                        >
+                          <GuestDetailsForm
+                            guest={
+                              guest
+                            }
+                            onChange={(
+                              updatedGuest,
+                            ) => {
+                              setGuest(
+                                updatedGuest,
+                              );
+
+                              setGuestValidationError(
+                                "",
+                              );
+
+                              setValidationError(
+                                "",
+                              );
+
+                              resetReservation();
+                            }}
+                          />
+                        </div>
                       </div>
 
                       <div className="xl:sticky xl:top-24">
@@ -1135,6 +1611,17 @@ export function BookingPageClient() {
                             handleSubmitReservation
                           }
                         />
+
+                        {guestValidationError && (
+                          <p
+                            role="alert"
+                            className="mt-4 border-l border-red-400/70 bg-red-400/[0.025] px-4 py-3 text-[11px] leading-6 text-red-300"
+                          >
+                            {
+                              guestValidationError
+                            }
+                          </p>
+                        )}
                       </div>
                     </div>
                   </FadeIn>
@@ -1143,6 +1630,44 @@ export function BookingPageClient() {
             )}
         </div>
       </section>
+
+      {showMobileContinueBar && (
+        <div className="fixed inset-x-0 bottom-0 z-[250] border-t border-gold/25 bg-[#080808]/95 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 shadow-[0_-15px_40px_rgba(0,0,0,0.45)] backdrop-blur-xl xl:hidden">
+          <div className="mx-auto flex max-w-3xl items-center justify-between gap-4">
+            <div className="min-w-0">
+              <p className="text-[8px] uppercase tracking-[0.24em] text-white/35">
+                {selectedRoomCount ===
+                1
+                  ? content.oneApartmentSelected
+                  : `${selectedRoomCount} ${content.apartmentsSelected}`}
+              </p>
+
+              <p className="mt-1 truncate text-[11px] text-white/70">
+                {locale === "ro"
+                  ? "Poți adăuga și alte apartamente."
+                  : "You can add more apartments."}
+              </p>
+            </div>
+
+            <button
+              type="button"
+              aria-label={
+                content.continueAria
+              }
+              onClick={
+                scrollToGuestDetails
+              }
+              className="group inline-flex min-h-11 shrink-0 items-center justify-center gap-3 bg-gold px-5 py-3 text-[8px] font-semibold uppercase tracking-[0.22em] text-black transition duration-500 hover:bg-white sm:px-7 sm:text-[9px]"
+            >
+              {
+                content.continue
+              }
+
+              <ArrowRight className="h-3.5 w-3.5 transition-transform duration-500 group-hover:translate-x-1" />
+            </button>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

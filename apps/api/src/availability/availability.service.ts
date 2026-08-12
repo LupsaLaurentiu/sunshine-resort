@@ -1,18 +1,36 @@
 import {
   BadRequestException,
   Injectable,
+  NotFoundException,
 } from '@nestjs/common';
+
 import {
   Prisma,
   ReservationStatus,
 } from '@prisma/client';
-import { PrismaService } from '../prisma/prisma.service';
-import { CheckAvailabilityQueryDto } from './dto/check-availability-query.dto';
+
+import {
+  PrismaService,
+} from '../prisma/prisma.service';
+
+import {
+  CheckAvailabilityQueryDto,
+} from './dto/check-availability-query.dto';
+
+import {
+  CheckRoomCalendarQueryDto,
+} from './dto/check-room-calendar-query.dto';
+
 import type {
   AvailabilityResponse,
   AvailableRoomType,
   NightlyRate,
 } from './types/availability-response.type';
+
+import type {
+  RoomCalendarDay,
+  RoomCalendarResponse,
+} from './types/room-calendar-response.type';
 
 const INVENTORY_BLOCKING_STATUSES: ReservationStatus[] = [
   ReservationStatus.PENDING_APPROVAL,
@@ -26,6 +44,490 @@ export class AvailabilityService {
   constructor(
     private readonly prisma: PrismaService,
   ) {}
+
+  async getRoomCalendar(
+    query:
+      CheckRoomCalendarQueryDto,
+  ): Promise<RoomCalendarResponse> {
+    const fromDate =
+      this.parseDate(
+        query.from,
+      );
+
+    const toDate =
+      this.parseDate(
+        query.to,
+      );
+
+    if (
+      Number.isNaN(
+        fromDate.getTime(),
+      ) ||
+      Number.isNaN(
+        toDate.getTime(),
+      )
+    ) {
+      throw new BadRequestException(
+        'Intervalul calendarului este invalid.',
+      );
+    }
+
+    if (
+      toDate <
+      fromDate
+    ) {
+      throw new BadRequestException(
+        'Data finală a calendarului trebuie să fie după data inițială.',
+      );
+    }
+
+    const rangeDays =
+      this.getDifferenceInDays(
+        fromDate,
+        toDate,
+      );
+
+    if (
+      rangeDays >
+      92
+    ) {
+      throw new BadRequestException(
+        'Calendarul public poate încărca maximum 93 de zile simultan.',
+      );
+    }
+
+    const toExclusive =
+      new Date(
+        toDate,
+      );
+
+    toExclusive.setUTCDate(
+      toExclusive.getUTCDate() +
+        1,
+    );
+
+    const roomType =
+      await this.prisma.roomType.findUnique({
+        where: {
+          slug:
+            query.roomTypeSlug,
+        },
+
+        include: {
+          rooms: {
+            where: {
+              isActive: true,
+            },
+
+            orderBy: {
+              code:
+                'asc',
+            },
+          },
+
+          ratePeriods: {
+            where: {
+              isActive: true,
+
+              startDate: {
+                lt:
+                  toExclusive,
+              },
+
+              endDate: {
+                gt:
+                  fromDate,
+              },
+            },
+
+            orderBy: {
+              startDate:
+                'asc',
+            },
+          },
+        },
+      });
+
+    if (
+      !roomType ||
+      !roomType.isActive
+    ) {
+      throw new NotFoundException(
+        'Tipul de apartament nu a fost găsit.',
+      );
+    }
+
+    const [
+      assignedReservations,
+      unassignedReservations,
+      blockedPeriods,
+      externalCalendarEvents,
+    ] =
+      await Promise.all([
+        this.prisma.reservationRoom.findMany({
+          where: {
+            roomTypeId:
+              roomType.id,
+
+            roomId: {
+              not:
+                null,
+            },
+
+            reservation: {
+              status: {
+                in:
+                  INVENTORY_BLOCKING_STATUSES,
+              },
+
+              checkInDate: {
+                lt:
+                  toExclusive,
+              },
+
+              checkOutDate: {
+                gt:
+                  fromDate,
+              },
+            },
+          },
+
+          select: {
+            roomId:
+              true,
+
+            reservation: {
+              select: {
+                checkInDate:
+                  true,
+
+                checkOutDate:
+                  true,
+              },
+            },
+          },
+        }),
+
+        this.prisma.reservationRoom.findMany({
+          where: {
+            roomTypeId:
+              roomType.id,
+
+            roomId:
+              null,
+
+            reservation: {
+              status: {
+                in:
+                  INVENTORY_BLOCKING_STATUSES,
+              },
+
+              checkInDate: {
+                lt:
+                  toExclusive,
+              },
+
+              checkOutDate: {
+                gt:
+                  fromDate,
+              },
+            },
+          },
+
+          select: {
+            reservation: {
+              select: {
+                checkInDate:
+                  true,
+
+                checkOutDate:
+                  true,
+              },
+            },
+          },
+        }),
+
+        this.prisma.blockedPeriod.findMany({
+          where: {
+            room: {
+              roomTypeId:
+                roomType.id,
+
+              isActive:
+                true,
+            },
+
+            startDate: {
+              lt:
+                toExclusive,
+            },
+
+            endDate: {
+              gt:
+                fromDate,
+            },
+          },
+
+          select: {
+            roomId:
+              true,
+
+            startDate:
+              true,
+
+            endDate:
+              true,
+          },
+        }),
+
+        this.prisma.externalCalendarEvent.findMany({
+          where: {
+            cancelledAt:
+              null,
+
+            startDate: {
+              lt:
+                toExclusive,
+            },
+
+            endDate: {
+              gt:
+                fromDate,
+            },
+
+            externalCalendar: {
+              isActive:
+                true,
+
+              room: {
+                roomTypeId:
+                  roomType.id,
+
+                isActive:
+                  true,
+              },
+            },
+          },
+
+          select: {
+            startDate:
+              true,
+
+            endDate:
+              true,
+
+            externalCalendar: {
+              select: {
+                roomId:
+                  true,
+              },
+            },
+          },
+        }),
+      ]);
+
+    const todayInRomania =
+      new Intl.DateTimeFormat(
+        'en-CA',
+        {
+          timeZone:
+            'Europe/Bucharest',
+
+          year:
+            'numeric',
+
+          month:
+            '2-digit',
+
+          day:
+            '2-digit',
+        },
+      ).format(
+        new Date(),
+      );
+
+    const days: RoomCalendarDay[] = [];
+    
+    const currentDate =
+      new Date(
+        fromDate,
+      );
+
+    while (
+      currentDate <=
+      toDate
+    ) {
+      const dayStart =
+        new Date(
+          currentDate,
+        );
+
+      const dayEnd =
+        new Date(
+          dayStart,
+        );
+
+      dayEnd.setUTCDate(
+        dayEnd.getUTCDate() +
+          1,
+      );
+
+      const unavailableRoomIds =
+        new Set<string>();
+
+      for (
+        const reservationRoom of
+          assignedReservations
+      ) {
+        if (
+          reservationRoom.roomId &&
+          reservationRoom
+            .reservation
+            .checkInDate <
+            dayEnd &&
+          reservationRoom
+            .reservation
+            .checkOutDate >
+            dayStart
+        ) {
+          unavailableRoomIds.add(
+            reservationRoom.roomId,
+          );
+        }
+      }
+
+      for (
+        const blockedPeriod of
+          blockedPeriods
+      ) {
+        if (
+          blockedPeriod.startDate <
+            dayEnd &&
+          blockedPeriod.endDate >
+            dayStart
+        ) {
+          unavailableRoomIds.add(
+            blockedPeriod.roomId,
+          );
+        }
+      }
+
+      for (
+        const externalEvent of
+          externalCalendarEvents
+      ) {
+        if (
+          externalEvent.startDate <
+            dayEnd &&
+          externalEvent.endDate >
+            dayStart
+        ) {
+          unavailableRoomIds.add(
+            externalEvent
+              .externalCalendar
+              .roomId,
+          );
+        }
+      }
+
+      const physicallyAvailableUnits =
+        roomType.rooms.filter(
+          (
+            room,
+          ) =>
+            !unavailableRoomIds.has(
+              room.id,
+            ),
+        ).length;
+
+      const unassignedHoldCount =
+        unassignedReservations.filter(
+          (
+            reservationRoom,
+          ) =>
+            reservationRoom
+              .reservation
+              .checkInDate <
+              dayEnd &&
+            reservationRoom
+              .reservation
+              .checkOutDate >
+              dayStart,
+        ).length;
+
+      const availableUnits =
+        Math.max(
+          0,
+          physicallyAvailableUnits -
+            unassignedHoldCount,
+        );
+
+      const nightlyRate =
+        this.calculateNightlyRates(
+          [
+            dayStart,
+          ],
+          roomType,
+        )[0];
+
+      if (!nightlyRate) {
+        throw new BadRequestException(
+          'Tariful pentru ziua selectată nu a putut fi calculat.',
+        );
+      }
+
+      const formattedDate =
+        this.formatDate(
+          dayStart,
+        );
+
+      days.push({
+        ...nightlyRate,
+
+        availableUnits,
+
+        isAvailable:
+          formattedDate >=
+            todayInRomania &&
+          availableUnits >
+            0,
+
+        minimumStay:
+          this.getMinimumStay(
+            dayStart,
+          ),
+      });
+
+      currentDate.setUTCDate(
+        currentDate.getUTCDate() +
+          1,
+      );
+    }
+
+    return {
+      roomType: {
+        id:
+          roomType.id,
+
+        slug:
+          roomType.slug,
+
+        nameRo:
+          roomType.nameRo,
+
+        nameEn:
+          roomType.nameEn,
+      },
+
+      from:
+        query.from,
+
+      to:
+        query.to,
+
+      days,
+    };
+  }
 
   async checkAvailability(
     query: CheckAvailabilityQueryDto,

@@ -19,6 +19,10 @@ import {
 } from "@/components/animations/FadeIn";
 
 import {
+  RoomAvailabilityCalendar,
+} from "@/components/rooms/RoomAvailabilityCalendar";
+
+import {
   RoomDetailsScrollButton,
 } from "@/components/rooms/RoomDetailsScrollButton";
 
@@ -164,15 +168,23 @@ function getRoomPublicHref(
 
 export async function generateStaticParams() {
   return publicRooms.flatMap(
-    (room) => [
+    (
+      room,
+    ) => [
       {
-        locale: "ro",
-        slug: room.slug,
+        locale:
+          "ro",
+
+        slug:
+          room.slug,
       },
 
       {
-        locale: "en",
-        slug: room.slug,
+        locale:
+          "en",
+
+        slug:
+          room.slug,
       },
     ],
   );
@@ -183,8 +195,10 @@ export async function generateMetadata({
 }: RoomDetailsPageProps): Promise<Metadata> {
   const {
     slug,
-    locale: localeParam,
-  } = await params;
+    locale:
+      localeParam,
+  } =
+    await params;
 
   const locale =
     resolveLocale(
@@ -196,12 +210,16 @@ export async function generateMetadata({
       slug,
     );
 
-  if (!room) {
+  if (
+    !room
+  ) {
     return {};
   }
 
   const localizedRoom =
-    room.content[locale];
+    room.content[
+      locale
+    ];
 
   const romanianHref =
     getRoomPublicHref(
@@ -257,7 +275,8 @@ export async function generateMetadata({
         "website",
 
       locale:
-        locale === "ro"
+        locale ===
+        "ro"
           ? "ro_RO"
           : "en_US",
 
@@ -279,8 +298,10 @@ export default async function RoomDetailsPage({
 }: RoomDetailsPageProps) {
   const {
     slug,
-    locale: localeParam,
-  } = await params;
+    locale:
+      localeParam,
+  } =
+    await params;
 
   const locale =
     resolveLocale(
@@ -292,15 +313,21 @@ export default async function RoomDetailsPage({
       slug,
     );
 
-  if (!room) {
+  if (
+    !room
+  ) {
     notFound();
   }
 
   const localizedRoom =
-    room.content[locale];
+    room.content[
+      locale
+    ];
 
   const pageContent =
-    PAGE_CONTENT[locale];
+    PAGE_CONTENT[
+      locale
+    ];
 
   const homeHref =
     getPublicHref(
@@ -314,16 +341,36 @@ export default async function RoomDetailsPage({
       locale,
     );
 
-  const bookingHref =
-    `${getPublicHref(
+  /*
+   * URL-ul de bază este folosit de calendar.
+   *
+   * RoomAvailabilityCalendar va adăuga:
+   *
+   * ?checkIn=YYYY-MM-DD
+   * &checkOut=YYYY-MM-DD
+   * &roomType=...
+   */
+  const bookingBaseHref =
+    getPublicHref(
       "book",
       locale,
-    )}?roomType=${encodeURIComponent(
+    );
+
+  /*
+   * CTA-ul final rămâne disponibil chiar dacă utilizatorul
+   * nu selectează o perioadă direct din calendar.
+   *
+   * În acest caz trimitem doar tipul apartamentului,
+   * iar perioada va putea fi aleasă în pagina de booking.
+   */
+  const bookingHref =
+    `${bookingBaseHref}?roomType=${encodeURIComponent(
       room.slug,
     )}`;
 
   const heroEyebrow =
-    localizedRoom.details[0] ??
+    localizedRoom
+      .details[0] ??
     localizedRoom.title;
 
   const reservationTitle =
@@ -336,13 +383,18 @@ export default async function RoomDetailsPage({
 
   return (
     <main className="bg-[#050505] text-[#f5f2eb]">
+      {/* HERO */}
       <section
         aria-labelledby="room-details-title"
         className="relative isolate flex min-h-[100svh] items-center justify-center overflow-hidden px-6 text-center text-white sm:px-8"
       >
         <Image
-          src={room.image}
-          alt={localizedRoom.title}
+          src={
+            room.image
+          }
+          alt={
+            localizedRoom.title
+          }
           fill
           priority
           sizes="100vw"
@@ -356,7 +408,9 @@ export default async function RoomDetailsPage({
         <div className="absolute inset-0 bg-gradient-to-r from-black/20 via-transparent to-black/15" />
 
         <Link
-          href={homeHref}
+          href={
+            homeHref
+          }
           aria-label={
             pageContent.logoAriaLabel
           }
@@ -365,12 +419,19 @@ export default async function RoomDetailsPage({
           <Image
             src="/logo-sunshine.png"
             alt="Sunshine Resort"
-            width={190}
-            height={125}
+            width={
+              190
+            }
+            height={
+              125
+            }
             priority
             style={{
-              width: "180px",
-              height: "auto",
+              width:
+                "180px",
+
+              height:
+                "auto",
             }}
             className="brightness-0 invert transition-opacity duration-300 hover:opacity-80"
           />
@@ -379,32 +440,48 @@ export default async function RoomDetailsPage({
         <div className="relative z-10 mx-auto max-w-4xl pt-24 md:pt-28">
           <FadeIn>
             <p className="text-[9px] font-medium uppercase tracking-[0.5em] text-gold sm:text-[10px] md:text-xs">
-              {heroEyebrow}
+              {
+                heroEyebrow
+              }
             </p>
           </FadeIn>
 
           <FadeIn
-            delay={0.15}
-            distance={48}
+            delay={
+              0.15
+            }
+            distance={
+              48
+            }
           >
             <h1
               id="room-details-title"
               className="heading mx-auto mt-8 max-w-4xl text-5xl font-light leading-[0.94] tracking-[0.005em] sm:text-6xl md:text-7xl lg:text-[6.5rem]"
             >
-              {localizedRoom.title}
+              {
+                localizedRoom.title
+              }
             </h1>
           </FadeIn>
 
           <FadeIn
-            delay={0.28}
-            distance={22}
+            delay={
+              0.28
+            }
+            distance={
+              22
+            }
           >
             <div className="mx-auto mt-9 h-px w-16 bg-gold/80 md:w-20" />
           </FadeIn>
 
           <FadeIn
-            delay={0.36}
-            distance={24}
+            delay={
+              0.36
+            }
+            distance={
+              24
+            }
           >
             <p className="mx-auto mt-9 max-w-2xl text-sm leading-8 text-white/70 sm:text-[15px] md:text-base md:leading-9">
               {
@@ -427,6 +504,7 @@ export default async function RoomDetailsPage({
         </div>
       </section>
 
+      {/* EXPERIENCE */}
       <section
         id="apartment-experience"
         aria-labelledby="apartment-experience-title"
@@ -434,10 +512,14 @@ export default async function RoomDetailsPage({
       >
         <div className="mx-auto max-w-[1300px]">
           <FadeIn
-            distance={20}
+            distance={
+              20
+            }
           >
             <Link
-              href={roomsHref}
+              href={
+                roomsHref
+              }
               className="group mb-16 inline-flex items-center gap-4 text-[9px] font-semibold uppercase tracking-[0.28em] text-white/40 transition duration-500 hover:text-gold md:mb-20"
             >
               <ArrowLeft className="h-3.5 w-3.5 transition-transform duration-500 group-hover:-translate-x-1" />
@@ -469,8 +551,12 @@ export default async function RoomDetailsPage({
             </FadeIn>
 
             <FadeIn
-              delay={0.2}
-              distance={32}
+              delay={
+                0.2
+              }
+              distance={
+                32
+              }
             >
               <div>
                 <p className="text-sm leading-8 text-white/55 sm:text-[15px] md:text-base md:leading-9">
@@ -503,6 +589,7 @@ export default async function RoomDetailsPage({
         </div>
       </section>
 
+      {/* GALLERY */}
       <section
         aria-labelledby="room-gallery-title"
         className="px-6 pb-28 sm:px-8 sm:pb-32 md:pb-40"
@@ -518,8 +605,12 @@ export default async function RoomDetailsPage({
             </FadeIn>
 
             <FadeIn
-              delay={0.12}
-              distance={38}
+              delay={
+                0.12
+              }
+              distance={
+                38
+              }
             >
               <h2
                 id="room-gallery-title"
@@ -539,16 +630,21 @@ export default async function RoomDetailsPage({
                 index,
               ) => {
                 const isFirstImage =
-                  index === 0;
+                  index ===
+                  0;
 
                 return (
                   <FadeIn
-                    key={image}
+                    key={
+                      image
+                    }
                     delay={
                       index *
                       0.1
                     }
-                    distance={28}
+                    distance={
+                      28
+                    }
                     className={
                       isFirstImage
                         ? "md:col-span-2"
@@ -558,6 +654,7 @@ export default async function RoomDetailsPage({
                     <div
                       className={[
                         "group relative overflow-hidden bg-[#111]",
+
                         isFirstImage
                           ? "h-[460px] sm:h-[580px] md:h-[720px]"
                           : "h-[420px] sm:h-[520px] md:h-[620px]",
@@ -566,7 +663,9 @@ export default async function RoomDetailsPage({
                       )}
                     >
                       <Image
-                        src={image}
+                        src={
+                          image
+                        }
                         alt={`${pageContent.galleryAlt} ${localizedRoom.title}`}
                         fill
                         sizes={
@@ -597,6 +696,7 @@ export default async function RoomDetailsPage({
         </div>
       </section>
 
+      {/* AMENITIES */}
       <section
         aria-labelledby="room-amenities-title"
         className="relative overflow-hidden bg-[#0b0b0b] px-6 py-28 sm:px-8 sm:py-32 md:py-40"
@@ -614,8 +714,12 @@ export default async function RoomDetailsPage({
             </FadeIn>
 
             <FadeIn
-              delay={0.12}
-              distance={40}
+              delay={
+                0.12
+              }
+              distance={
+                40
+              }
             >
               <h2
                 id="room-amenities-title"
@@ -642,7 +746,9 @@ export default async function RoomDetailsPage({
                     index *
                     0.045
                   }
-                  distance={18}
+                  distance={
+                    18
+                  }
                   className="h-full"
                 >
                   <div className="group flex h-full min-h-[130px] items-center justify-center border-b border-r border-white/10 bg-[#0b0b0b] px-7 py-8 text-center transition duration-500 hover:bg-white/[0.025]">
@@ -659,9 +765,25 @@ export default async function RoomDetailsPage({
         </div>
       </section>
 
+      {/* AVAILABILITY CALENDAR */}
+      <RoomAvailabilityCalendar
+        roomSlug={
+          room.slug
+        }
+        locale={
+          locale
+        }
+        bookingHref={
+          bookingBaseHref
+        }
+      />
+
+      {/* FINAL CTA */}
       <section className="relative isolate overflow-hidden px-6 py-36 text-center sm:px-8 md:py-44 lg:py-52">
         <Image
-          src={room.image}
+          src={
+            room.image
+          }
           alt=""
           fill
           sizes="100vw"
@@ -682,8 +804,12 @@ export default async function RoomDetailsPage({
           </FadeIn>
 
           <FadeIn
-            delay={0.15}
-            distance={48}
+            delay={
+              0.15
+            }
+            distance={
+              48
+            }
           >
             <h2 className="heading mx-auto mt-8 max-w-4xl text-5xl font-light leading-[0.98] tracking-[-0.02em] sm:text-6xl md:text-7xl lg:text-8xl">
               {
@@ -693,8 +819,12 @@ export default async function RoomDetailsPage({
           </FadeIn>
 
           <FadeIn
-            delay={0.28}
-            distance={24}
+            delay={
+              0.28
+            }
+            distance={
+              24
+            }
           >
             <p className="mx-auto mt-10 max-w-2xl text-sm leading-8 text-white/55 sm:text-[15px] md:text-base md:leading-9">
               {
@@ -704,11 +834,17 @@ export default async function RoomDetailsPage({
           </FadeIn>
 
           <FadeIn
-            delay={0.4}
-            distance={20}
+            delay={
+              0.4
+            }
+            distance={
+              20
+            }
           >
             <Link
-              href={bookingHref}
+              href={
+                bookingHref
+              }
               className="group mt-14 inline-flex min-h-14 items-center justify-center gap-4 border border-gold bg-gold px-10 py-4 text-[9px] font-semibold uppercase tracking-[0.3em] text-black transition duration-500 hover:border-white hover:bg-white sm:px-12 sm:text-[10px]"
             >
               {

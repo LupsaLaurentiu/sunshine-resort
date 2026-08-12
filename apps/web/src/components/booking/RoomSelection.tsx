@@ -3,6 +3,10 @@
 import Image from "next/image";
 
 import {
+  ArrowDown,
+} from "lucide-react";
+
+import {
   usePathname,
 } from "next/navigation";
 
@@ -63,6 +67,8 @@ type RoomSelectionProps = {
     slug: string,
     quantity: number,
   ) => void;
+
+  onContinueToGuestDetails: () => void;
 };
 
 type RateOverview = {
@@ -154,6 +160,18 @@ const ROOM_SELECTION_CONTENT = {
 
     extraAdultsAriaLabel:
       "Adulți suplimentari pentru",
+
+    selectedOne:
+      "1 apartament selectat",
+
+    selectedMany:
+      "apartamente selectate",
+
+    continue:
+      "Continuă cu datele oaspetelui",
+
+    continueDescription:
+      "Poți selecta mai multe apartamente înainte de a continua.",
   },
 
   en: {
@@ -225,6 +243,18 @@ const ROOM_SELECTION_CONTENT = {
 
     extraAdultsAriaLabel:
       "Extra adults for",
+
+    selectedOne:
+      "1 apartment selected",
+
+    selectedMany:
+      "apartments selected",
+
+    continue:
+      "Continue with guest details",
+
+    continueDescription:
+      "You can select multiple apartments before continuing.",
   },
 } as const;
 
@@ -431,6 +461,7 @@ export function RoomSelection({
   selectedExtraAdults,
   onQuantityChange,
   onExtraAdultQuantityChange,
+  onContinueToGuestDetails,
 }: RoomSelectionProps) {
   const pathname =
     usePathname();
@@ -444,6 +475,19 @@ export function RoomSelection({
     ROOM_SELECTION_CONTENT[
       locale
     ];
+
+  const selectedRoomCount =
+    Object.values(
+      selectedRooms,
+    ).reduce(
+      (
+        total,
+        quantity,
+      ) =>
+        total +
+        quantity,
+      0,
+    );
 
   function handleRoomQuantityChange(
     room: BookingRoom,
@@ -544,7 +588,15 @@ export function RoomSelection({
                 key={
                   room.roomTypeId
                 }
-                className="grid overflow-hidden border border-white/10 bg-[#0b0b0b] lg:grid-cols-[0.9fr_1.1fr]"
+                className={[
+                  "grid overflow-hidden border bg-[#0b0b0b] transition-colors duration-500 lg:grid-cols-[0.9fr_1.1fr]",
+                  selectedQuantity >
+                  0
+                    ? "border-gold/45"
+                    : "border-white/10",
+                ].join(
+                  " ",
+                )}
               >
                 <div className="relative min-h-[320px]">
                   <Image
@@ -555,7 +607,7 @@ export function RoomSelection({
                       room.title
                     }
                     fill
-                    sizes="(min-width: 1024px) 40vw, 100vw"
+                    sizes="(min-width: 1280px) 33vw, (min-width: 1024px) 40vw, 100vw"
                     className="object-cover"
                   />
 
@@ -874,6 +926,42 @@ export function RoomSelection({
           },
         )}
       </div>
+
+      {selectedRoomCount >
+        0 && (
+        <div className="mt-10 border border-gold/25 bg-[#0b0b0b] px-6 py-6 sm:px-8">
+          <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-[10px] font-medium uppercase tracking-[0.28em] text-gold">
+                {selectedRoomCount ===
+                1
+                  ? content.selectedOne
+                  : `${selectedRoomCount} ${content.selectedMany}`}
+              </p>
+
+              <p className="mt-2 max-w-lg text-xs leading-6 text-white/40">
+                {
+                  content.continueDescription
+                }
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={
+                onContinueToGuestDetails
+              }
+              className="group inline-flex min-h-12 shrink-0 items-center justify-center gap-4 border border-gold bg-gold px-7 py-3.5 text-[9px] font-semibold uppercase tracking-[0.24em] text-black transition duration-500 hover:border-white hover:bg-white sm:px-8 sm:text-[10px]"
+            >
+              {
+                content.continue
+              }
+
+              <ArrowDown className="h-3.5 w-3.5 transition-transform duration-500 group-hover:translate-y-1" />
+            </button>
+          </div>
+        </div>
+      )}
     </section>
   );
 }
