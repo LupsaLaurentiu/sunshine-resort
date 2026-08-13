@@ -698,6 +698,25 @@ export function BookingPageClient() {
       ],
     );
 
+  /*
+   * IMPORTANT:
+   *
+   * Butonul din BookingSummary trebuie să rămână
+   * clickabil chiar dacă GuestDetailsForm nu este
+   * încă complet.
+   *
+   * Validarea formularului este făcută în
+   * handleSubmitReservation().
+   *
+   * Dacă formularul este incomplet:
+   *
+   * 1. afișăm mesajul;
+   * 2. facem smooth scroll către Guest Details;
+   * 3. NU trimitem request-ul de rezervare.
+   *
+   * De aceea isGuestFormComplete NU trebuie să facă
+   * parte din canSubmit.
+   */
   const canSubmit =
     searched &&
     availability !==
@@ -706,7 +725,6 @@ export function BookingPageClient() {
       minimumNights &&
     selectedRoomCount >
       0 &&
-    isGuestFormComplete &&
     !isCreatingReservation;
 
   const shouldShowMobileCta =
@@ -1267,6 +1285,18 @@ export function BookingPageClient() {
       return;
     }
 
+    /*
+     * Formularul guest este validat AICI,
+     * nu prin disabled pe buton.
+     *
+     * Astfel utilizatorul poate apăsa
+     * "Trimite cererea de rezervare", iar dacă
+     * datele lipsesc:
+     *
+     * - afișăm mesajul;
+     * - îl ducem automat la Guest Details;
+     * - nu trimitem rezervarea.
+     */
     if (
       !isGuestFormComplete
     ) {
