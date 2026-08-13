@@ -8,6 +8,7 @@ import {
 } from "react";
 
 import {
+  ArrowDown,
   ArrowRight,
   ArrowUp,
 } from "lucide-react";
@@ -119,11 +120,11 @@ const BOOKING_PAGE_CONTENT = {
     apartmentsSelected:
       "apartamente selectate",
 
-    continue:
-      "Continuă",
+    continueGuest:
+      "Continuă cu datele oaspetelui",
 
-    continueAria:
-      "Continuă la datele oaspetelui",
+    confirmReservation:
+      "Confirmă rezervarea",
   },
 
   en: {
@@ -166,11 +167,11 @@ const BOOKING_PAGE_CONTENT = {
     apartmentsSelected:
       "apartments selected",
 
-    continue:
-      "Continue",
+    continueGuest:
+      "Continue with guest details",
 
-    continueAria:
-      "Continue to guest details",
+    confirmReservation:
+      "Confirm reservation",
   },
 } as const;
 
@@ -291,6 +292,11 @@ export function BookingPageClient() {
       null,
     );
 
+  const bookingSummarySectionRef =
+    useRef<HTMLDivElement | null>(
+      null,
+    );
+
   const initialQueryHandledRef =
     useRef(false);
 
@@ -335,15 +341,9 @@ export function BookingPageClient() {
   ] =
     useState("");
 
-  /*
-   * Folosit pentru CTA-ul fixed de mobile/tablet.
-   *
-   * Când GuestDetailsForm intră în viewport,
-   * bara de continuare dispare.
-   */
   const [
-    isGuestDetailsVisible,
-    setIsGuestDetailsVisible,
+    isBookingSummaryVisible,
+    setIsBookingSummaryVisible,
   ] =
     useState(false);
 
@@ -539,9 +539,6 @@ export function BookingPageClient() {
       ],
     );
 
-  /*
-   * Preselectăm camera venită din pagina apartamentului.
-   */
   useEffect(
     () => {
       const requestedRoomSlug =
@@ -606,6 +603,57 @@ export function BookingPageClient() {
     ],
   );
 
+  useEffect(
+    () => {
+      const target =
+        bookingSummarySectionRef.current;
+
+      if (!target) {
+        setIsBookingSummaryVisible(
+          false,
+        );
+
+        return;
+      }
+
+      const observer =
+        new IntersectionObserver(
+          (
+            entries,
+          ) => {
+            const [
+              entry,
+            ] =
+              entries;
+
+            setIsBookingSummaryVisible(
+              entry.isIntersecting,
+            );
+          },
+          {
+            threshold:
+              0.18,
+
+            rootMargin:
+              "-40px 0px -80px 0px",
+          },
+        );
+
+      observer.observe(
+        target,
+      );
+
+      return () => {
+        observer.disconnect();
+      };
+    },
+    [
+      searched,
+      availability,
+      availableRooms.length,
+    ],
+  );
+
   const selectedRoomCount =
     useMemo(
       () =>
@@ -625,6 +673,31 @@ export function BookingPageClient() {
       ],
     );
 
+  const isGuestFormComplete =
+    useMemo(
+      () =>
+        guest.firstName
+          .trim()
+          .length >
+          0 &&
+        guest.lastName
+          .trim()
+          .length >
+          0 &&
+        guest.email
+          .trim()
+          .length >
+          0 &&
+        guest.phone
+          .trim()
+          .length >
+          0 &&
+        guest.acceptedTerms,
+      [
+        guest,
+      ],
+    );
+
   const canSubmit =
     searched &&
     availability !==
@@ -633,78 +706,18 @@ export function BookingPageClient() {
       minimumNights &&
     selectedRoomCount >
       0 &&
+    isGuestFormComplete &&
     !isCreatingReservation;
 
-  /*
-   * Observăm GuestDetailsForm.
-   *
-   * Când formularul intră suficient în viewport,
-   * CTA-ul fixed de jos dispare.
-   */
-  useEffect(
-    () => {
-      if (
-        !searched ||
-        !availability ||
-        availableRooms.length ===
-          0
-      ) {
-        setIsGuestDetailsVisible(
-          false,
-        );
-
-        return;
-      }
-
-      const target =
-        guestDetailsSectionRef.current;
-
-      if (!target) {
-        return;
-      }
-
-      const observer =
-        new IntersectionObserver(
-          (
-            entries,
-          ) => {
-            const entry =
-              entries[0];
-
-            setIsGuestDetailsVisible(
-              Boolean(
-                entry?.isIntersecting,
-              ),
-            );
-          },
-          {
-            /*
-             * Nu trebuie să fie vizibil întreg formularul.
-             * Este suficient să fi ajuns utilizatorul
-             * în zona lui.
-             */
-            threshold:
-              0.08,
-
-            rootMargin:
-              "0px 0px -15% 0px",
-          },
-        );
-
-      observer.observe(
-        target,
-      );
-
-      return () => {
-        observer.disconnect();
-      };
-    },
-    [
-      searched,
-      availability,
-      availableRooms.length,
-    ],
-  );
+  const shouldShowMobileCta =
+    searched &&
+    availability !==
+      null &&
+    availableRooms.length >
+      0 &&
+    selectedRoomCount >
+      0 &&
+    !isBookingSummaryVisible;
 
   function scrollWithFallback(
     target: HTMLElement,
@@ -715,7 +728,6 @@ export function BookingPageClient() {
         target,
         {
           offset,
-
           duration:
             1.15,
         },
@@ -804,6 +816,40 @@ export function BookingPageClient() {
     );
   }
 
+  function scrollToBookingSummary() {
+    window.requestAnimationFrame(
+      () => {
+        window.requestAnimationFrame(
+          () => {
+            const section =
+              bookingSummarySectionRef.current;
+
+            if (!section) {
+              return;
+            }
+
+            scrollWithFallback(
+              section,
+              -90,
+            );
+          },
+        );
+      },
+    );
+  }
+
+  function handleMobileCta() {
+    if (
+      isGuestFormComplete
+    ) {
+      scrollToBookingSummary();
+
+      return;
+    }
+
+    scrollToGuestDetails();
+  }
+
   function resetSearchResults() {
     setSearched(
       false,
@@ -817,16 +863,16 @@ export function BookingPageClient() {
       "",
     );
 
-    setIsGuestDetailsVisible(
-      false,
-    );
-
     setSelectedRooms(
       {},
     );
 
     setSelectedExtraAdults(
       {},
+    );
+
+    setIsBookingSummaryVisible(
+      false,
     );
 
     resetAvailability();
@@ -956,16 +1002,16 @@ export function BookingPageClient() {
       "",
     );
 
-    setIsGuestDetailsVisible(
-      false,
-    );
-
     setSelectedRooms(
       {},
     );
 
     setSelectedExtraAdults(
       {},
+    );
+
+    setIsBookingSummaryVisible(
+      false,
     );
 
     resetReservation();
@@ -1002,9 +1048,6 @@ export function BookingPageClient() {
     }
   }
 
-  /*
-   * Preluăm perioada + camera din URL.
-   */
   useEffect(
     () => {
       if (
@@ -1224,26 +1267,9 @@ export function BookingPageClient() {
       return;
     }
 
-    const guestFormIncomplete =
-      guest.firstName
-        .trim()
-        .length ===
-        0 ||
-      guest.lastName
-        .trim()
-        .length ===
-        0 ||
-      guest.email
-        .trim()
-        .length ===
-        0 ||
-      guest.phone
-        .trim()
-        .length ===
-        0 ||
-      !guest.acceptedTerms;
-
-    if (guestFormIncomplete) {
+    if (
+      !isGuestFormComplete
+    ) {
       setValidationError(
         "",
       );
@@ -1347,7 +1373,8 @@ export function BookingPageClient() {
           availability.checkOut,
 
         locale:
-          locale === "en"
+          locale ===
+          "en"
             ? "EN"
             : "RO",
 
@@ -1401,38 +1428,13 @@ export function BookingPageClient() {
     reservationError ||
     availabilityError;
 
-  /*
-   * CTA mobile/tablet:
-   *
-   * - trebuie să existe minimum o cameră selectată;
-   * - nu trebuie să fim deja în GuestDetailsForm.
-   */
-  const showMobileContinueBar =
-    searched &&
-    availability !==
-      null &&
-    availableRooms.length >
-      0 &&
-    selectedRoomCount >
-      0 &&
-    !isGuestDetailsVisible;
-
   return (
     <main
-      className={[
-        "bg-[#050505] text-[#f5f2eb]",
-
-        /*
-         * Pe mobile lăsăm puțin spațiu jos cât timp
-         * CTA-ul fixed este activ, astfel încât să nu
-         * acopere ultimul conținut din secțiunea de rooms.
-         */
-        showMobileContinueBar
-          ? "pb-24 xl:pb-0"
-          : "",
-      ].join(
-        " ",
-      )}
+      className={`bg-[#050505] text-[#f5f2eb] ${
+        shouldShowMobileCta
+          ? "pb-28 xl:pb-0"
+          : ""
+      }`}
     >
       <BookingHeader />
 
@@ -1584,7 +1586,12 @@ export function BookingPageClient() {
                         </div>
                       </div>
 
-                      <div className="xl:sticky xl:top-24">
+                      <div
+                        ref={
+                          bookingSummarySectionRef
+                        }
+                        className="xl:sticky xl:top-24"
+                      >
                         <BookingSummary
                           checkIn={
                             availability.checkIn
@@ -1631,43 +1638,56 @@ export function BookingPageClient() {
         </div>
       </section>
 
-      {showMobileContinueBar && (
-        <div className="fixed inset-x-0 bottom-0 z-[250] border-t border-gold/25 bg-[#080808]/95 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 shadow-[0_-15px_40px_rgba(0,0,0,0.45)] backdrop-blur-xl xl:hidden">
-          <div className="mx-auto flex max-w-3xl items-center justify-between gap-4">
-            <div className="min-w-0">
-              <p className="text-[8px] uppercase tracking-[0.24em] text-white/35">
-                {selectedRoomCount ===
-                1
-                  ? content.oneApartmentSelected
-                  : `${selectedRoomCount} ${content.apartmentsSelected}`}
-              </p>
+      <div
+        className={`fixed inset-x-0 bottom-0 z-[70] border-t border-white/10 bg-[#080808]/95 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur-xl transition-all duration-500 xl:hidden ${
+          shouldShowMobileCta
+            ? "translate-y-0 opacity-100"
+            : "pointer-events-none translate-y-full opacity-0"
+        }`}
+      >
+        <div className="mx-auto flex max-w-2xl items-center gap-4">
+          <div className="min-w-0 flex-1">
+            <p className="text-[8px] font-medium uppercase tracking-[0.28em] text-gold">
+              {selectedRoomCount ===
+              1
+                ? content.oneApartmentSelected
+                : `${selectedRoomCount} ${content.apartmentsSelected}`}
+            </p>
 
-              <p className="mt-1 truncate text-[11px] text-white/70">
-                {locale === "ro"
-                  ? "Poți adăuga și alte apartamente."
-                  : "You can add more apartments."}
-              </p>
-            </div>
-
-            <button
-              type="button"
-              aria-label={
-                content.continueAria
-              }
-              onClick={
-                scrollToGuestDetails
-              }
-              className="group inline-flex min-h-11 shrink-0 items-center justify-center gap-3 bg-gold px-5 py-3 text-[8px] font-semibold uppercase tracking-[0.22em] text-black transition duration-500 hover:bg-white sm:px-7 sm:text-[9px]"
-            >
-              {
-                content.continue
-              }
-
-              <ArrowRight className="h-3.5 w-3.5 transition-transform duration-500 group-hover:translate-x-1" />
-            </button>
+            <p className="mt-1 truncate text-[10px] leading-5 text-white/35">
+              {isGuestFormComplete
+                ? locale ===
+                  "ro"
+                  ? "Verifică rezumatul înainte de trimitere."
+                  : "Review the summary before submitting."
+                : locale ===
+                  "ro"
+                ? "Completează datele pentru a continua."
+                : "Complete your details to continue."}
+            </p>
           </div>
+
+          <button
+            type="button"
+            onClick={
+              handleMobileCta
+            }
+            className="group flex min-h-[52px] shrink-0 items-center justify-center gap-3 border border-gold bg-gold px-5 text-[8px] font-semibold uppercase tracking-[0.22em] text-black transition duration-500 active:scale-[0.98] sm:px-7 sm:text-[9px]"
+          >
+            <span>
+              {isGuestFormComplete
+                ? content.confirmReservation
+                : content.continueGuest}
+            </span>
+
+            {isGuestFormComplete ? (
+              <ArrowRight className="h-3.5 w-3.5 shrink-0 transition-transform duration-300 group-hover:translate-x-1" />
+            ) : (
+              <ArrowDown className="h-3.5 w-3.5 shrink-0 transition-transform duration-300 group-hover:translate-y-1" />
+            )}
+          </button>
         </div>
-      )}
+      </div>
     </main>
   );
 }

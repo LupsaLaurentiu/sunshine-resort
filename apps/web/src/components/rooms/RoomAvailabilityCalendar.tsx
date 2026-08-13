@@ -224,14 +224,6 @@ const CONTENT = {
   },
 } as const;
 
-/**
- * Slug-urile publice sunt SEO-friendly și nu sunt
- * neapărat identice cu slug-urile RoomType din DB.
- *
- * IMPORTANT:
- * - URL-ul public continuă să folosească deluxe-apartment etc.
- * - doar request-ul către backend folosește slug-ul DB.
- */
 function getBackendRoomSlug(
   publicSlug: string,
 ): string {
@@ -558,6 +550,14 @@ export function RoomAvailabilityCalendar({
           "",
         );
 
+        /*
+         * Păstrăm intervalul request-ului exact
+         * în forma inițială.
+         *
+         * Nu extindem request-ul până la check-in,
+         * deoarece backend-ul poate avea o limită
+         * pentru intervalul calendarului.
+         */
         const fromDate =
           firstMonth <
           new Date(
@@ -587,17 +587,6 @@ export function RoomAvailabilityCalendar({
             );
           }
 
-          /*
-           * Aici folosim slug-ul real din DB.
-           *
-           * Exemplu:
-           *
-           * /ro/camere/deluxe-apartment
-           *
-           * devine pentru backend:
-           *
-           * roomTypeSlug=deluxe
-           */
           const backendRoomSlug =
             getBackendRoomSlug(
               roomSlug,
@@ -642,8 +631,99 @@ export function RoomAvailabilityCalendar({
           const data =
             (await response.json()) as CalendarResponse;
 
+          /*
+           * IMPORTANT — FIX CROSS-MONTH
+           *
+           * Nu mai facem:
+           *
+           * setCalendar(data)
+           *
+           * deoarece asta ar șterge zilele deja încărcate
+           * din luna precedentă.
+           *
+           * Exemplu mobil:
+           *
+           * 1. calendarul conține august + septembrie
+           * 2. utilizatorul selectează 30 august
+           * 3. navighează în septembrie
+           * 4. backend-ul întoarce septembrie + octombrie
+           *
+           * Dacă înlocuim state-ul, 30 și 31 august dispar.
+           *
+           * În schimb combinăm zilele vechi cu cele noi.
+           * Pentru zilele care se suprapun, răspunsul nou
+           * de la backend are prioritate.
+           */
           setCalendar(
-            data,
+            (
+              current,
+            ) => {
+              if (
+                !current ||
+                current.roomType.id !==
+                  data.roomType.id
+              ) {
+                return data;
+              }
+
+              const daysByDate =
+                new Map<
+                  string,
+                  CalendarDay
+                >();
+
+              for (
+                const day of
+                  current.days
+              ) {
+                daysByDate.set(
+                  day.date,
+                  day,
+                );
+              }
+
+              for (
+                const day of
+                  data.days
+              ) {
+                daysByDate.set(
+                  day.date,
+                  day,
+                );
+              }
+
+              const mergedDays =
+                Array.from(
+                  daysByDate.values(),
+                ).sort(
+                  (
+                    first,
+                    second,
+                  ) =>
+                    first.date.localeCompare(
+                      second.date,
+                    ),
+                );
+
+              return {
+                ...data,
+
+                from:
+                  current.from <
+                  data.from
+                    ? current.from
+                    : data.from,
+
+                to:
+                  current.to >
+                  data.to
+                    ? current.to
+                    : data.to,
+
+                days:
+                  mergedDays,
+              };
+            },
           );
         } catch (
           requestError
@@ -661,17 +741,25 @@ export function RoomAvailabilityCalendar({
             requestError,
           );
 
-          setCalendar(
-            null,
-          );
-
+          /*
+           * IMPORTANT:
+           *
+           * Nu ștergem calendarul existent dacă un request
+           * ulterior eșuează.
+           *
+           * Zilele deja încărcate rămân utilizabile.
+           */
           setError(
             content.error,
           );
         } finally {
-          setIsLoading(
-            false,
-          );
+          if (
+            !controller.signal.aborted
+          ) {
+            setIsLoading(
+              false,
+            );
+          }
         }
       }
 
@@ -786,18 +874,30 @@ export function RoomAvailabilityCalendar({
       );
 
     /*
-     * Check-out-ul nu reprezintă o noapte consumată,
-     * deci verificăm doar [checkIn, checkOut).
+     * Check-out-ul nu reprezintă o noapte ocupată.
+     *
+     * 30 august -> 14 septembrie verifică:
+     *
+     * 30 aug
+     * 31 aug
+     * 1 sep
+     * ...
+     * 13 sep
+     *
+     * Nu și 14 septembrie.
      */
     while (
       current <
       endDate
     ) {
+      const currentDate =
+        toDateString(
+          current,
+        );
+
       const day =
         dayByDate.get(
-          toDateString(
-            current,
-          ),
+          currentDate,
         );
 
       if (
@@ -835,10 +935,11 @@ export function RoomAvailabilityCalendar({
     }
 
     /*
-     * Primul click = check-in.
+     * Primul click:
+     * selectăm check-in.
      *
      * Dacă exista deja un interval complet,
-     * primul click începe o selecție nouă.
+     * începem o selecție nouă.
      */
     if (
       !checkIn ||
@@ -862,8 +963,8 @@ export function RoomAvailabilityCalendar({
     }
 
     /*
-     * Click înainte de check-in-ul actual:
-     * mutăm check-in-ul.
+     * Dacă utilizatorul selectează o dată înainte
+     * de check-in-ul curent, mutăm check-in-ul.
      */
     if (
       date <=
@@ -958,14 +1059,6 @@ export function RoomAvailabilityCalendar({
         );
       }
 
-      /*
-       * Înainte de redirect facem încă o verificare
-       * pe endpoint-ul principal de availability.
-       *
-       * Calendarul este pentru UX.
-       * Endpoint-ul principal rămâne sursa finală
-       * pentru validarea întregului sejur.
-       */
       const params =
         new URLSearchParams({
           checkIn,
@@ -1023,12 +1116,6 @@ export function RoomAvailabilityCalendar({
         return;
       }
 
-      /*
-       * Pentru redirect păstrăm slug-ul PUBLIC.
-       *
-       * BookingPageClient îl normalizează pentru
-       * preselectarea camerei.
-       */
       const query =
         new URLSearchParams({
           checkIn,
@@ -1185,11 +1272,6 @@ export function RoomAvailabilityCalendar({
                 ) &&
                 !isBeforeTomorrow;
 
-              /*
-               * Noaptea este ocupată, dar ziua poate fi
-               * folosită drept check-out dacă toate nopțile
-               * anterioare din interval sunt disponibile.
-               */
               const isUnavailableNight =
                 Boolean(
                   day,
@@ -1215,6 +1297,13 @@ export function RoomAvailabilityCalendar({
                     checkOut,
                 );
 
+              /*
+               * O zi indisponibilă ca NOAPTE poate totuși
+               * fi folosită drept check-out.
+               *
+               * isRangeAvailable() verifică numai nopțile
+               * înainte de data de check-out.
+               */
               const canBeCheckout =
                 Boolean(
                   checkIn &&
@@ -1382,7 +1471,8 @@ export function RoomAvailabilityCalendar({
                               content.promotion}
                         </p>
 
-                        {day.originalPrice && (
+                        {day.originalPrice !==
+                          null && (
                           <p className="mt-2 text-[10px] text-white/35 line-through">
                             {formatPrice(
                               day.originalPrice,
