@@ -1527,7 +1527,7 @@ export function RoomAvailabilityCalendar({
           </p>
         </div>
 
-        <div className="mt-14 border-y border-white/10 py-8">
+        <div className="mt-14 border-y border-gold py-8">
           <div className="mb-8 flex items-center justify-between">
             <button
               type="button"

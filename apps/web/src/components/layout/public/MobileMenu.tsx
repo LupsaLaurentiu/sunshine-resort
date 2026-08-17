@@ -40,10 +40,7 @@ type MobileMenuProps = {
 
 type MenuLink = {
   number: string;
-  routeKey: Exclude<
-    PublicRouteKey,
-    "book"
-  >;
+  routeKey: PublicRouteKey;
   image: string;
 };
 
@@ -65,49 +62,55 @@ const links: MenuLink[] = [
   },
   {
     number: "02",
+    routeKey: "book",
+    image:
+      "/images/room-premium-2.jpg",
+  },
+  {
+    number: "03",
     routeKey: "rooms",
     image:
       "/images/room-premium-1.jpg",
   },
   {
-    number: "03",
+    number: "04",
     routeKey:
       "facilities",
     image:
       "/images/atractions-1.jpg",
   },
   {
-    number: "04",
+    number: "05",
     routeKey:
       "saltWaterPool",
     image:
       "/images/pool-salt.jpg",
   },
   {
-    number: "05",
+    number: "06",
     routeKey:
       "attractions",
     image:
       "/images/atractions-2.jpg",
   },
   {
-    number: "06",
+    number: "07",
     routeKey: "gallery",
     image:
       "/images/room-deluxe-1.jpg",
   },
   {
-    number: "07",
+    number: "08",
     routeKey: "about",
     image:
       "/images/about-slow.webp",
   },
   {
-    number: "08",
+    number: "09",
     routeKey: "contact",
     image:
       "/images/ogna-sugatag-4.png",
-  },
+  }
 ];
 
 const easing = [
@@ -143,6 +146,11 @@ export function MobileMenu({
     activeLinkIndex,
     setActiveLinkIndex,
   ] = useState(0);
+
+  const [
+    isCompactLandscape,
+    setIsCompactLandscape,
+  ] = useState(false);
 
   const scrollPositionRef =
     useRef(0);
@@ -443,6 +451,33 @@ export function MobileMenu({
   ]);
 
   useEffect(() => {
+    const compactLandscapeQuery =
+      window.matchMedia(
+        "(min-width: 768px) and (max-width: 1100px) and (max-height: 850px) and (orientation: landscape)",
+      );
+
+    function updateCompactLandscape() {
+      setIsCompactLandscape(
+        compactLandscapeQuery.matches,
+      );
+    }
+
+    updateCompactLandscape();
+
+    compactLandscapeQuery.addEventListener(
+      "change",
+      updateCompactLandscape,
+    );
+
+    return () => {
+      compactLandscapeQuery.removeEventListener(
+        "change",
+        updateCompactLandscape,
+      );
+    };
+  }, []);
+
+  useEffect(() => {
     if (isOpen) {
       const currentRouteIndex =
         links.findIndex(
@@ -535,7 +570,11 @@ export function MobileMenu({
               duration: 0.35,
               ease: easing,
             }}
-            className="absolute left-5 top-5 z-50 flex h-11 w-11 items-center justify-center text-white/65 transition hover:text-gold md:left-7 md:top-7"
+            className={`absolute z-50 flex h-11 w-11 items-center justify-center text-white/65 transition hover:text-gold ${
+              isCompactLandscape
+                ? "left-4 top-4"
+                : "left-5 top-5 md:left-7 md:top-7"
+            }`}
           >
             <X className="h-7 w-7 stroke-[1.15]" />
           </motion.button>
@@ -561,7 +600,11 @@ export function MobileMenu({
               duration: 0.35,
               ease: easing,
             }}
-            className="absolute right-6 top-8 z-50 flex items-center gap-5 text-[10px] uppercase tracking-[0.32em] md:right-8 md:top-9"
+            className={`absolute z-50 flex items-center uppercase ${
+              isCompactLandscape
+                ? "right-5 top-5 gap-4 text-[9px] tracking-[0.28em]"
+                : "right-6 top-8 gap-5 text-[10px] tracking-[0.32em] md:right-8 md:top-9"
+            }`}
           >
             <Link
               href={romanianHref}
@@ -632,7 +675,7 @@ export function MobileMenu({
             </Link>
           </motion.div>
 
-          <div className="grid h-full lg:grid-cols-[36%_64%]">
+          <div className="grid h-full lg:grid-cols-[42%_58%]">
             <motion.section
               initial={{
                 x: "-100%",
@@ -649,7 +692,13 @@ export function MobileMenu({
               }}
               className="relative z-20 flex min-h-0 flex-col border-white/10 bg-[#070707] lg:border-r"
             >
-              <div className="flex min-h-0 flex-1 flex-col px-7 pb-7 pt-24 sm:px-10 lg:px-12 lg:pb-8 lg:pt-10 xl:px-16">
+              <div
+                className={
+                  isCompactLandscape
+                    ? "flex min-h-0 flex-1 flex-col px-7 pb-4 pt-16 sm:px-8 lg:px-8 lg:pb-4 lg:pt-5 xl:px-10"
+                    : "flex min-h-0 flex-1 flex-col px-7 pb-7 pt-24 sm:px-10 lg:px-10 lg:pb-6 lg:pt-6 xl:px-12"
+                }
+              >
                 <motion.div
                   initial={{
                     opacity: 0,
@@ -680,13 +729,21 @@ export function MobileMenu({
                     height={120}
                     priority
                     style={{
-                      width: "150px",
+                      width: isCompactLandscape
+                        ? "92px"
+                        : "170px",
                       height: "auto",
                     }}
                     className="brightness-0 invert"
                   />
 
-                  <div className="mt-7 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-[9px] uppercase tracking-[0.36em]">
+                  <div
+                    className={
+                      isCompactLandscape
+                        ? "mt-3 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-[7px] uppercase tracking-[0.28em]"
+                        : "mt-6 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-[10px] uppercase tracking-[0.34em] 2xl:text-[11px]"
+                    }
+                  >
                     <span className="text-gold">
                       Sunshine Resort
                     </span>
@@ -705,8 +762,20 @@ export function MobileMenu({
                   </div>
                 </motion.div>
 
-                <nav className="flex min-h-0 flex-1 items-center py-7 lg:py-4">
-                  <ul className="w-full space-y-2.5 sm:space-y-3 lg:space-y-2">
+                <nav
+                  className={
+                    isCompactLandscape
+                      ? "flex min-h-0 flex-1 items-center py-1"
+                      : "flex min-h-0 flex-1 items-center py-5 lg:py-2"
+                  }
+                >
+                  <ul
+                    className={
+                      isCompactLandscape
+                        ? "w-full space-y-0.5"
+                        : "w-full space-y-1.5 sm:space-y-2 lg:space-y-1.5"
+                    }
+                  >
                     {links.map(
                       (
                         link,
@@ -782,10 +851,18 @@ export function MobileMenu({
                                   index,
                                 )
                               }
-                              className="group grid grid-cols-[34px_1fr] items-center gap-3 py-1.5"
+                              className={
+                                isCompactLandscape
+                                  ? "group grid grid-cols-[28px_1fr] items-center gap-2 py-0.5"
+                                  : "group grid grid-cols-[30px_1fr] items-center gap-2 py-0.5"
+                              }
                             >
                               <span
-                                className={`text-[8px] tracking-[0.3em] transition duration-300 ${
+                                className={`${
+                                  isCompactLandscape
+                                    ? "text-[7px] tracking-[0.24em]"
+                                    : "text-[9px] tracking-[0.3em]"
+                                } transition duration-300 ${
                                   isActive
                                     ? "text-gold"
                                     : "text-white/15"
@@ -796,20 +873,34 @@ export function MobileMenu({
                                 }
                               </span>
 
-                              <span className="flex min-w-0 items-center gap-4">
+                              <span
+                                className={
+                                  isCompactLandscape
+                                    ? "flex min-w-0 items-center gap-3"
+                                    : "flex min-w-0 items-center gap-3"
+                                }
+                              >
                                 <span
                                   className={`h-px shrink-0 transition-all duration-500 ${
                                     isActive
-                                      ? "w-7 bg-gold"
-                                      : "w-0 bg-gold/40 group-hover:w-7"
+                                      ? isCompactLandscape
+                                        ? "w-5 bg-gold"
+                                        : "w-6 bg-gold"
+                                      : isCompactLandscape
+                                        ? "w-0 bg-gold/40 group-hover:w-5"
+                                        : "w-0 bg-gold/40 group-hover:w-6"
                                   }`}
                                 />
 
                                 <span
                                   className={`heading min-w-0 font-light leading-none transition duration-500 ${
                                     isActive
-                                      ? "translate-x-1 text-[2rem] text-gold xl:text-[2.15rem]"
-                                      : "text-[1.8rem] text-white/68 group-hover:translate-x-1 group-hover:text-gold xl:text-[1.95rem]"
+                                      ? isCompactLandscape
+                                        ? "translate-x-1 text-[1.5rem] text-gold xl:text-[1.62rem]"
+                                        : "translate-x-1 text-[2rem] text-gold xl:text-[2.15rem] 2xl:text-[2.3rem]"
+                                      : isCompactLandscape
+                                        ? "text-[1.36rem] text-white/68 group-hover:translate-x-1 group-hover:text-gold xl:text-[1.48rem]"
+                                        : "text-[1.82rem] text-white/68 group-hover:translate-x-1 group-hover:text-gold xl:text-[1.98rem] 2xl:text-[2.1rem]"
                                   }`}
                                 >
                                   {label}
@@ -844,7 +935,11 @@ export function MobileMenu({
                     duration: 0.4,
                     ease: easing,
                   }}
-                  className="flex items-end justify-between gap-6 border-t border-white/10 pt-6 text-[8px] uppercase tracking-[0.28em] text-white/25"
+                  className={
+                    isCompactLandscape
+                      ? "flex items-end justify-between gap-4 border-t border-white/10 pt-3 text-[7px] uppercase tracking-[0.22em] text-white/25"
+                      : "flex items-end justify-between gap-6 border-t border-white/10 pt-4 text-[7px] uppercase tracking-[0.26em] text-white/25"
+                  }
                 >
                   <div>
                     <p className="text-gold">
@@ -938,7 +1033,11 @@ export function MobileMenu({
                       priority={
                         index === 0
                       }
-                      sizes="64vw"
+                      sizes={
+                        isCompactLandscape
+                          ? "58vw"
+                          : "58vw"
+                      }
                       className="object-cover"
                     />
                   </motion.div>
@@ -951,7 +1050,13 @@ export function MobileMenu({
 
               <div className="absolute inset-x-0 bottom-0 h-[42%] bg-gradient-to-t from-black/88 via-black/45 to-transparent" />
 
-              <div className="absolute bottom-14 left-14 right-14 z-10 flex items-end justify-between gap-10 xl:bottom-16 xl:left-16 xl:right-16">
+              <div
+                className={
+                  isCompactLandscape
+                    ? "absolute bottom-7 left-8 right-8 z-10 flex items-end justify-between gap-6"
+                    : "absolute bottom-10 left-8 right-8 z-10 flex items-end justify-between gap-8 xl:bottom-12 xl:left-10 xl:right-10"
+                }
+              >
                 <motion.div
                   key={activeHref}
                   initial={{
@@ -971,7 +1076,13 @@ export function MobileMenu({
                     {activeEyebrow}
                   </p>
 
-                  <h3 className="heading mt-4 max-w-3xl text-5xl font-light leading-none text-white xl:text-6xl">
+                  <h3
+                    className={
+                      isCompactLandscape
+                        ? "heading mt-3 max-w-3xl text-4xl font-light leading-none text-white xl:text-[2.75rem]"
+                        : "heading mt-3 max-w-3xl text-4xl font-light leading-none text-white xl:text-[2.75rem]"
+                    }
+                  >
                     {activeLabel}
                   </h3>
 
@@ -983,7 +1094,11 @@ export function MobileMenu({
                         activeHref,
                       )
                     }
-                    className="group mt-7 inline-flex items-center gap-4 text-[9px] uppercase tracking-[0.3em] text-white/55 transition hover:text-gold"
+                    className={
+                      isCompactLandscape
+                        ? "group mt-4 inline-flex items-center gap-3 text-[8px] uppercase tracking-[0.26em] text-white/55 transition hover:text-gold"
+                        : "group mt-5 inline-flex items-center gap-3 text-[8px] uppercase tracking-[0.28em] text-white/55 transition hover:text-gold"
+                    }
                   >
                     {locale === "ro"
                       ? "Descoperă"

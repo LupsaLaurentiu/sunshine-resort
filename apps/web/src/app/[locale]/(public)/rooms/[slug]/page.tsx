@@ -790,7 +790,7 @@ export default async function RoomDetailsPage({
           className="object-cover object-center opacity-15"
         />
 
-        <div className="absolute inset-0 bg-black/75" />
+        <div className="absolute inset-0 bg-black/45" />
 
         <div className="absolute inset-0 bg-gradient-to-b from-[#050505] via-transparent to-[#050505]" />
 
