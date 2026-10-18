@@ -1,4 +1,5 @@
 export type AdminSection =
+  | "televisions"
   | "dashboard"
   | "reservations"
   | "calendar"

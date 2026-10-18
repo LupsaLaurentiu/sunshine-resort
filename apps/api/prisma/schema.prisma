@@ -144,6 +144,7 @@ model Room {
   reservationRooms  ReservationRoom[]
   blockedPeriods    BlockedPeriod[]
   externalCalendars ExternalCalendar[]
+  welcomeDevice     TvDevice?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -151,6 +152,30 @@ model Room {
   @@index([roomTypeId])
   @@index([isActive])
   @@index([roomTypeId, allowsExtraAdult, isActive])
+}
+
+model TvDevice {
+  id           String    @id @default(cuid())
+  roomId       String?   @unique
+  tokenHash    String    @unique
+  lastSeenAt   DateTime?
+  revokedAt    DateTime?
+  hideGuestName Boolean  @default(false)
+  forceStandard Boolean  @default(false)
+  registeredByAdminId String
+  room         Room?     @relation(fields: [roomId], references: [id], onDelete: SetNull)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+model TvPairing {
+  id          String    @id @default(cuid())
+  codeHash    String    @unique
+  tokenHash   String    @unique
+  expiresAt   DateTime
+  consumedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  @@index([expiresAt])
 }
 
 model Guest {

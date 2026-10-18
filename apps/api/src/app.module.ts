@@ -14,6 +14,8 @@ import { RoomsModule } from './rooms/rooms.module';
 import { RoomTypesModule } from './room-types/room-types.module';
 import { CalendarModule } from './calendar/calendar.module';
 import { DashboardModule } from './dashboard/dashboard.module';
+import { TvDemoModule } from './tv-demo/tv-demo.module';
+import { TvModule } from './tv/tv.controller';
 
 @Module({
   imports: [
@@ -36,6 +38,8 @@ import { DashboardModule } from './dashboard/dashboard.module';
     EmailModule,
     CalendarModule,
     DashboardModule,
+    TvDemoModule,
+    TvModule,
   ],
 })
 export class AppModule {}

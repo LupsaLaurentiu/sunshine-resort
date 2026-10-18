@@ -1,0 +1,13 @@
+{
+  "id": "com.sunshine.resort.welcome.poc",
+  "version": "0.1.0",
+  "vendor": "Sunshine Resort",
+  "type": "web",
+  "main": "index.html",
+  "title": "Sunshine Welcome PoC",
+  "icon": "icon.png",
+  "largeIcon": "largeIcon.png",
+  "resolution": "1920x1080",
+  "requiredACG": [],
+  "disableBackHistoryAPI": true
+}

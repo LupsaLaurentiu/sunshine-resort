@@ -1,0 +1,32 @@
+* { box-sizing: border-box; }
+:root { font-family: Arial, sans-serif; color: #eee9dd; background: #0c0d0d; font-synthesis: none; }
+body { margin: 0; }
+.tv-shell { min-height: 100vh; padding: 5vh 6vw; display: flex; flex-direction: column; background: radial-gradient(ellipse at 87% 44%, #393020 0%, #181915 28%, #0c0d0d 65%); }
+header, footer { display: flex; justify-content: space-between; align-items: center; }
+.brand { color: #d0b579; letter-spacing: .24em; font-size: 1.65vw; }
+.sun { display: inline-block; font-size: 2.7vw; vertical-align: middle; margin-right: 1vw; }
+small { display: block; font: .65vw Arial, sans-serif; letter-spacing: .23em; margin-top: .6vw; color: #b0ac9e; }
+time { font-size: 2vw; text-align: right; }
+main { flex: 1; display: flex; align-items: center; padding: 4vh 0; }
+section { width: 100%; }
+.eyebrow { color: #cfb57b; letter-spacing: .28em; font-size: 1vw; margin-bottom: 3vh; }
+h1 { font: 4.9vw/1.15 Georgia, serif; font-weight: normal; margin: 0; }
+h1 span { color: #d9c293; }
+.gold-line { width: 5vw; height: 2px; background: #b89960; margin: 3.5vh 0; }
+.tagline { font: italic 1.8vw Georgia, serif; color: #c5c0b3; }
+nav { display: flex; gap: 1.3vw; margin-top: 5vh; }
+button { background: #d3bc88; border: 2px solid #d3bc88; color: #141513; font: 1.25vw Arial, sans-serif; padding: 1.1vw 1.6vw; cursor: pointer; border-radius: 2px; }
+button span { margin-left: 2vw; }
+button.secondary { background: transparent; color: #e7dcc4; border-color: #70664f; }
+button:focus-visible, button:focus { outline: 4px solid #fff5db; outline-offset: 6px; box-shadow: 0 0 0 9px #54462b; }
+footer { border-top: 1px solid #4b4537; padding-top: 2vh; color: #bcb5a5; font-size: .85vw; gap: 2vw; }
+.information h1 { font-size: 3.4vw; }
+.cards { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.1vw; margin: 3vh 0; }
+article { border: 1px solid #514837; padding: 1.3vw 1.6vw; background: #141613; }
+.number { color: #b99b62; font-size: .9vw; }
+h2 { font: 1.8vw Georgia, serif; color: #ddc899; margin: .7vw 0; }
+article p { font-size: 1.2vw; color: #c4c1b6; line-height: 1.5; margin: 0; }
+.overlay { position: fixed; inset: 0; background: #000c; display: flex; align-items: center; justify-content: center; }
+.overlay section { width: 52vw; padding: 3vw; background: #191a16; border: 1px solid #b89960; }
+.overlay p { font-size: 1.3vw; }
+.pairing { font-size: 1.6vw; color: #ddc899; }

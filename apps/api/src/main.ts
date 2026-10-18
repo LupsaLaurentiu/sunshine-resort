@@ -13,6 +13,7 @@ import {
 import {
   AppModule,
 } from "./app.module";
+import { isTvDemoRequest } from './tv-demo/demo-cors';
 
 async function bootstrap() {
   const app =
@@ -63,10 +64,10 @@ async function bootstrap() {
     "api",
   );
 
-  app.enableCors({
+  const existingCorsOptions = {
     origin: (
-      origin,
-      callback,
+      origin: string | undefined,
+      callback: (error: Error | null, allow?: boolean) => void,
     ) => {
       if (
         !origin ||
@@ -91,6 +92,14 @@ async function bootstrap() {
 
     credentials:
       true,
+  };
+
+  app.enableCors((request, callback) => {
+    const isTvDeviceRequest = (request.path === '/api/tv/pairing' && ['POST', 'OPTIONS'].includes(request.method)) ||
+      (request.path === '/api/tv/me/content' && ['GET', 'OPTIONS'].includes(request.method));
+    callback(null, isTvDemoRequest(request.path, request.method) || isTvDeviceRequest
+      ? { origin: '*', credentials: false, methods: ['GET', 'POST'], allowedHeaders: ['Content-Type', 'Authorization'] }
+      : existingCorsOptions);
   });
 
   app.useGlobalPipes(

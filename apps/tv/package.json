@@ -1,0 +1,34 @@
+{
+  "name": "sunshine-tv-poc",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build:reservations": "node scripts/check-reservation-config.mjs && tsc --noEmit && vite build --mode reservations && node scripts/prepare-webos.mjs",
+    "package:reservations": "npm run build:reservations && ares-package dist --outdir artifacts/reservations",
+    "test": "node --experimental-strip-types --test tests/*.test.mjs",
+    "dev": "vite --host 127.0.0.1",
+    "build": "tsc --noEmit && vite build && node scripts/prepare-webos.mjs",
+    "package:webos": "npm run build && ares-package dist --outdir artifacts",
+    "preview": "vite preview --host 127.0.0.1",
+    "webos": "ares",
+    "device:setup": "ares-setup-device",
+    "device:key": "ares-novacom --device sunshine-lg --getkey",
+    "device:info": "ares-device --device sunshine-lg --system-info",
+    "tv:install": "ares-install --device sunshine-lg artifacts/com.sunshine.resort.welcome.poc_0.1.0_all.ipk",
+    "tv:launch": "ares-launch --device sunshine-lg com.sunshine.resort.welcome.poc",
+    "tv:close": "ares-launch --device sunshine-lg --close com.sunshine.resort.welcome.poc",
+    "tv:inspect": "ares-inspect --device sunshine-lg --app com.sunshine.resort.welcome.poc --open"
+  },
+  "dependencies": {
+    "react": "19.2.4",
+    "react-dom": "19.2.4"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "@webos-tools/cli": "3.2.6",
+    "typescript": "~5.9.3",
+    "vite": "^6.4.0"
+  }
+}

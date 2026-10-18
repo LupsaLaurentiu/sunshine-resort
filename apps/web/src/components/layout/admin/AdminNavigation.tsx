@@ -6,6 +6,7 @@ import type {
 } from "@/types/admin";
 
 const navigationItems: AdminNavigationItem[] = [
+  { id: "televisions", label: "Televizoare" },
   {
     id: "dashboard",
     label: "Dashboard",
