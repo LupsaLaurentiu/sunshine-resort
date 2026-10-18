@@ -41,7 +41,7 @@ produces the standard welcome.
    the backend must not also be publicly reachable over HTTP. Do not enable that
    flag as an HTTP development bypass. Keep its default unset otherwise.
 5. Deploy/restart the web app against the same HTTPS API. Its normal admin JWT
-   authentication protects the new **Televizoare** section.
+   authentication protects the new **Camere** apartment cards.
 6. In `apps/tv/.env.reservations.local`, configure only the public URL:
 
    ```dotenv

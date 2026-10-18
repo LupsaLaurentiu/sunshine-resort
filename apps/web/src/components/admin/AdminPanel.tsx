@@ -12,7 +12,6 @@ import { RoomsSection } from "./rooms/RoomsSection";
 import { AdminEmptySection } from "./shared/AdminEmptySection";
 import { AdminBlockedPeriods } from "./blocked-periods/AdminBlockedPeriods";
 import { AdminSettingsSection } from "./settings/AdminSettingsSection";
-import { AdminTelevisions } from "./tv/AdminTelevisions";
 
 import { AdminHeader } from "@/components/layout/admin/AdminHeader";
 import { AdminNavigation } from "@/components/layout/admin/AdminNavigation";
@@ -21,8 +20,6 @@ function renderSection(
   section: AdminSection,
 ) {
   switch (section) {
-    case "televisions":
-      return <AdminTelevisions />;
     case "dashboard":
       return <AdminDashboard />;
 

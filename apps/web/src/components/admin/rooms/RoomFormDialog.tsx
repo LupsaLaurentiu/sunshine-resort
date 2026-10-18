@@ -6,7 +6,6 @@ import {
   useState,
 } from "react";
 import {
-  Monitor,
   Save,
   Users,
   X,
@@ -44,7 +43,6 @@ type RoomFormState = {
   name: string;
   code: string;
   roomTypeId: string;
-  tvDeviceId: string;
   allowsExtraAdult: boolean;
 };
 
@@ -52,7 +50,6 @@ const EMPTY_FORM: RoomFormState = {
   name: "",
   code: "",
   roomTypeId: "",
-  tvDeviceId: "",
   allowsExtraAdult: false,
 };
 
@@ -67,8 +64,6 @@ function getInitialForm(
     name: room.name,
     code: room.code,
     roomTypeId: room.roomTypeId,
-    tvDeviceId:
-      room.tvDeviceId ?? "",
     allowsExtraAdult:
       room.allowsExtraAdult,
   };
@@ -115,23 +110,6 @@ export function RoomFormDialog({
     useState<string | null>(null);
 
   const isEditing = room !== null;
-
-  useEffect(() => {
-    if (!isOpen) {
-      return;
-    }
-
-    setForm(
-      getInitialForm(room),
-    );
-
-    setLocalError(null);
-    onClearError();
-  }, [
-    isOpen,
-    room,
-    onClearError,
-  ]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -252,10 +230,6 @@ export function RoomFormDialog({
       allowsExtraAdult:
         form.allowsExtraAdult,
 
-      ...(form.tvDeviceId.trim() && {
-        tvDeviceId:
-          form.tvDeviceId.trim(),
-      }),
     };
 
     const savedRoom =
@@ -486,32 +460,6 @@ export function RoomFormDialog({
                   </p>
                 )}
             </div>
-          </div>
-
-          <div className="mt-6">
-            <FormField label="TV Device ID">
-              <div className="relative">
-                <Monitor className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gold" />
-
-                <input
-                  type="text"
-                  value={form.tvDeviceId}
-                  disabled={isSaving}
-                  onChange={(event) =>
-                    updateField(
-                      "tvDeviceId",
-                      event.target.value,
-                    )
-                  }
-                  placeholder="Ex. TV-APT-01"
-                  className="h-12 w-full border border-white/10 bg-[#050505] pl-11 pr-4 text-sm text-white outline-none transition placeholder:text-white/20 focus:border-gold disabled:cursor-wait disabled:opacity-50"
-                />
-              </div>
-
-              <p className="mt-2 text-xs leading-6 text-white/25">
-                Identificatorul unic folosit de sistemul TV Welcome pentru acest apartament.
-              </p>
-            </FormField>
           </div>
 
           {displayedError && (

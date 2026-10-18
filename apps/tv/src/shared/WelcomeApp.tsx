@@ -52,7 +52,7 @@ export function WelcomeApp({ content, platform, connectionStatus, pairingCode }:
         <h1>{content.guest ? <>Welcome,<br /><span>{content.guest.displayName}</span></> : <>Welcome to<br /><span>Sunshine Resort</span></>}</h1>
         <div className="gold-line" />
         <p className="tagline">{content.tagline}</p>
-        {pairingCode && <p className="pairing" role="status">TV pairing code: <strong>{pairingCode}</strong><br /><small>Enter this code in PMS → Televizoare. Valid for 10 minutes.</small></p>}
+        {pairingCode && <p className="pairing" role="status">TV pairing code: <strong>{pairingCode}</strong><br /><small>Enter this code in PMS → Camere, on your apartment card. Valid for 10 minutes.</small></p>}
         <nav><button onClick={() => setScreen('information')}>Explore the resort <span>→</span></button><button className="secondary" onClick={() => setExitRequested(true)}>Exit welcome</button></nav>
       </section> : <section className="information">
         <p className="eyebrow">MAKE YOURSELF AT HOME</p><h1>Your stay, considered.</h1>

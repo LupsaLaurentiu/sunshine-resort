@@ -7,10 +7,12 @@ import {
 } from "lucide-react";
 
 import type { AdminRoom } from "@/types/admin-room";
+import { RoomTelevisionControls, type RoomTelevisionControlsProps } from "./RoomTelevisionControls";
 
 type RoomCardProps = {
   room: AdminRoom;
   onEdit: (room: AdminRoom) => void;
+  television: RoomTelevisionControlsProps;
 };
 
 function formatExtraAdultPrice(
@@ -30,6 +32,7 @@ function formatExtraAdultPrice(
 export function RoomCard({
   room,
   onEdit,
+  television,
 }: RoomCardProps) {
   const allowsExtraAdult =
     room.allowsExtraAdult;
@@ -88,15 +91,12 @@ export function RoomCard({
           icon={Monitor}
           label="TV Welcome"
           value={
-            room.tvDeviceId?.trim() ||
-            "Neconfigurat"
+            television.device === undefined ? "Indisponibil" : television.device ? "Asociat" : "Neasociat"
           }
           secondaryValue={
-            room.tvDeviceId
-              ? "Dispozitiv asociat"
-              : "Necesită configurare"
+            television.device ? (television.device.online ? "Online recent" : "Fără conexiune recentă") : ""
           }
-          muted={!room.tvDeviceId}
+          muted={!television.device}
         />
       </div>
 
@@ -132,6 +132,7 @@ export function RoomCard({
         </div>
       </div>
 
+      <RoomTelevisionControls {...television} />
       <div className="flex justify-end px-6 py-5">
         <button
           type="button"

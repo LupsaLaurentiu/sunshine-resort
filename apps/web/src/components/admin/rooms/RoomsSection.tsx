@@ -10,6 +10,7 @@ import {
 } from "react";
 
 import { useAdminRooms } from "@/hooks/useAdminRooms";
+import { useRoomTelevisions } from "@/hooks/useRoomTelevisions";
 
 import type {
   AdminRoom,
@@ -19,6 +20,8 @@ import { RoomCard } from "./RoomCard";
 import { RoomFormDialog } from "./RoomFormDialog";
 
 export function RoomsSection() {
+  const tv = useRoomTelevisions();
+  const devicesByRoom = new Map(tv.devices.map(device => [device.roomId, device]));
   const {
     rooms,
     roomTypes,
@@ -171,6 +174,7 @@ export function RoomsSection() {
             type="button"
             onClick={() => {
               void refresh();
+              void tv.refresh();
             }}
             disabled={isLoading}
             aria-label="Reîncarcă apartamentele"
@@ -219,12 +223,7 @@ export function RoomsSection() {
         <InventoryMetric
           label="TV asociate"
           value={
-            rooms.filter(
-              (room) =>
-                Boolean(
-                  room.tvDeviceId?.trim(),
-                ),
-            ).length
+            tv.loaded ? rooms.filter(room => devicesByRoom.has(room.id)).length : "—"
           }
           description="Apartamente conectate la sistemul TV Welcome."
         />
@@ -232,15 +231,13 @@ export function RoomsSection() {
         <InventoryMetric
           label="Fără TV"
           value={
-            rooms.filter(
-              (room) =>
-                !room.tvDeviceId?.trim(),
-            ).length
+            tv.loaded ? rooms.filter(room => !devicesByRoom.has(room.id)).length : "—"
           }
           description="Apartamente care necesită asocierea unui dispozitiv."
         />
       </div>
 
+      {tv.error && <div role="alert" className="border border-red-300/20 bg-red-300/5 px-6 py-5 text-sm text-red-200">TV Welcome: {tv.error}</div>}
       {error && !isDialogOpen && (
         <div
           role="alert"
@@ -326,6 +323,8 @@ export function RoomsSection() {
                       <RoomCard
                         key={room.id}
                         room={room}
+                        television={{ roomId: room.id, device: tv.loaded ? devicesByRoom.get(room.id) ?? null : undefined,
+                          availableRooms: rooms.filter(candidate => !devicesByRoom.has(candidate.id)), busy: tv.busy, mutate: tv.mutate }}
                         onEdit={
                           openEditDialog
                         }
@@ -339,7 +338,8 @@ export function RoomsSection() {
         </div>
       )}
 
-      <RoomFormDialog
+      {isDialogOpen && <RoomFormDialog
+        key={selectedRoom?.id ?? "create"}
         isOpen={isDialogOpen}
         room={selectedRoom}
         roomTypes={roomTypes}
@@ -349,14 +349,14 @@ export function RoomsSection() {
         onCreate={createRoom}
         onUpdate={updateRoom}
         onClearError={clearError}
-      />
+      />}
     </section>
   );
 }
 
 type InventoryMetricProps = {
   label: string;
-  value: number;
+  value: number | string;
   description: string;
 };
 

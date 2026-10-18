@@ -89,8 +89,9 @@ function TvWelcomePlaceholder() {
 
       <footer className="border-t border-white/10 px-6 py-5 md:px-8">
         <p className="text-xs leading-6 text-white/30">
-          Configurarea TV Welcome va fi conectată după adăugarea modelului și a
-          endpoint-urilor dedicate în backend.
+          Asocierea televizoarelor, starea conexiunii și controalele TV Welcome
+          se gestionează din Camere, în cardul fiecărui apartament. Editarea
+          informațiilor generale de mai sus va fi disponibilă ulterior.
         </p>
       </footer>
     </section>
