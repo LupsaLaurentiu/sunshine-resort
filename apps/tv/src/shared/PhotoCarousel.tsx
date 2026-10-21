@@ -23,6 +23,9 @@ export function PhotoCarousel({ language, paused, recommendations = '', gallery 
     const motionPreference = () => setReducedMotion(media.matches);
     document.addEventListener('visibilitychange', visibility);
     media.addEventListener('change', motionPreference);
+    // webOS can become visible between the initial render and effect setup.
+    visibility();
+    motionPreference();
     return () => { document.removeEventListener('visibilitychange', visibility); media.removeEventListener('change', motionPreference); };
   }, []);
 

@@ -1,5 +1,27 @@
 # Reservation-driven TV integration
 
+## Lighter exit dialog (0.3.6)
+
+The exit dialog stays mounted between openings, hidden and inert while closed.
+Its full-screen scrim is static, without backdrop blur. The dialog uses a 120ms
+opacity transition instead of the previous 400ms movement/scale animation, and
+focus uses a simple gold ring. Left/right selects the two actions directly,
+without measuring button geometry; up/down keeps focus inside the dialog.
+
+Photo zoom now pauses alongside gallery progress while the dialog is open, then
+resumes from the same position. Only the active photograph requests a transform
+layer. Visibility and motion preferences are synchronized after listener setup to
+cover webOS becoming visible during initial mounting.
+
+Validation: TypeScript/Vite/IPK build, isolated browser checks for RO/EN,
+1080p/720p layout, remote navigation, cancellation, one simulated exit, inert
+closed controls, reduced motion, and gallery progress/zoom suspension passed.
+LG checks covered retained dialog nodes, default Stay focus, arrows, Back,
+cancel, photo suspension and playback state. Development-inspector frame samples
+showed fewer dropped frames in repeated openings, but occasional stalls remained
+and timings varied with gallery activity; these are not a fixed latency guarantee.
+The real platform exit was not invoked during hardware checks.
+
 ## Bundled Montserrat typography (0.3.5)
 
 The entire TV interface now uses Montserrat Variable, including headings, sidebar,
@@ -268,7 +290,7 @@ appear; no eligible stay correctly produces the standard welcome.
    npm test
    npm run package:reservations
    npm run tv:close
-   npm exec -- ares-install --device sunshine-lg artifacts/reservations/com.sunshine.resort.welcome.poc_0.3.5_all.ipk
+   npm exec -- ares-install --device sunshine-lg artifacts/reservations/com.sunshine.resort.welcome.poc_0.3.6_all.ipk
    npm run tv:launch
    ```
 

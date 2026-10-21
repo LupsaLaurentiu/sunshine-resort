@@ -69,8 +69,12 @@ footer { border-top: 1px solid #ffffff20; padding-top: 2vh; color: #d1c6b2; font
 .pagination { margin-top: 2.5vh; padding-top: 1vh; display: flex; justify-content: space-between; align-items: center; color: #d1c5ac; font-size: .9vw; }
 .pagination > div { display: flex; gap: .8vw; }
 .pagination button { display: inline-flex; align-items: center; justify-content: center; padding: .6vw 1vw; }
-.overlay { position: fixed; z-index: 5; inset: 0; background: #030503bb; backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); display: flex; align-items: center; justify-content: center; animation: overlay-in .3s both; }
-.exit-dialog { position: relative; width: 58vw; max-height: 88vh; padding: 3vw 3.8vw 2.4vw; border: 1px solid #e3c98c30; border-radius: 1vw; background: radial-gradient(ellipse at 50% 0, #b4955220, transparent 58%), linear-gradient(145deg, #1b1c16, #0b0d09); box-shadow: 0 32px 110px #000b, inset 0 1px #fff1; text-align: center; animation: dialog-in .4s cubic-bezier(.2,.8,.2,1) both; }
+/* Keep the full-screen scrim static: backdrop blur is costly on the TV GPU. */
+.overlay { position: fixed; z-index: 5; inset: 0; background: #030503d9; display: flex; align-items: center; justify-content: center; visibility: hidden; pointer-events: none; }
+.overlay.is-open { visibility: visible; pointer-events: auto; }
+/* Retain the dialog between openings; only its opacity changes. */
+.exit-dialog { position: relative; width: 58vw; max-height: 88vh; padding: 3vw 3.8vw 2.4vw; border: 1px solid #e3c98c30; border-radius: 1vw; background: radial-gradient(ellipse at 50% 0, #b4955220, transparent 58%), linear-gradient(145deg, #1b1c16, #0b0d09); box-shadow: inset 0 1px #fff1; text-align: center; opacity: 0; will-change: opacity; transition: opacity .12s ease-out; }
+.overlay.is-open .exit-dialog { opacity: 1; }
 .exit-dialog-mark { display: flex; align-items: center; justify-content: center; width: 6.4vw; height: 6.4vw; margin: 0 auto 1.8vh; border: 1px solid #d4b47728; border-radius: 50%; background: radial-gradient(circle, #d4b4770d, transparent 75%); }
 .exit-dialog-mark img { width: 4.2vw; height: 5vw; object-fit: contain; filter: brightness(0) invert(1); opacity: .85; }
 .exit-dialog .eyebrow { font-size: .65vw; margin-bottom: 1.6vh; color: #d7bd82; }
@@ -78,15 +82,15 @@ footer { border-top: 1px solid #ffffff20; padding-top: 2vh; color: #d1c6b2; font
 .exit-dialog h2 { margin: 0; font-size: 3.2vw; line-height: 1.15; color: #f5ecda; letter-spacing: -.025em; }
 .exit-dialog-description { max-width: 39vw; margin: 2vh auto 0; color: #c9c1af; font-size: 1.05vw; line-height: 1.7; }
 .exit-dialog-actions { display: flex; gap: 1.1vw; margin-top: 3.7vh; }
-.exit-dialog-actions button { flex: 1; min-width: 0; min-height: 3.6vw; padding: 1.1vw 1.2vw; border-radius: .5vw; font-size: 1vw; gap: .85vw; }
+.exit-dialog-actions button { flex: 1; min-width: 0; min-height: 3.6vw; padding: 1.1vw 1.2vw; border-radius: .5vw; font-size: 1vw; gap: .85vw; transition: background-color .1s, border-color .1s, color .1s; }
+.exit-dialog-actions .action-icon { transition: none; }
 .exit-dialog-stay { background: linear-gradient(135deg, #e8d3a4, #c9a65a); border-color: #e8d3a455; color: #181a11; }
 .exit-dialog-leave { background: #ffffff03; border-color: #e8d3a426; color: #e4dac4; }
-.exit-dialog-actions button:focus, .exit-dialog-actions button:hover { outline: none; transform: translateY(-2px); border-color: #e8d3a488; box-shadow: 0 0 0 1px #ead4a333, 0 6px 28px #d4b47720; }
+.exit-dialog-actions button:focus, .exit-dialog-actions button:hover { outline: none; border-color: #e8d3a488; box-shadow: 0 0 0 2px #ead4a366; }
 .exit-dialog-leave:focus, .exit-dialog-leave:hover { background: #d4b47713; color: #fff0cf; }
 .exit-dialog-help { margin: 2.6vh 0 0; display: flex; justify-content: center; gap: 1.8vw; color: #aca38e; font-size: .7vw; }
 .exit-dialog-help kbd { margin-right: .35vw; font: .65vw var(--font-ui); color: #d6c8aa; border: 1px solid #d6c8aa25; border-radius: .2vw; padding: .2vw .35vw; }
-@keyframes overlay-in { from { opacity: 0; } to { opacity: 1; } }
-@keyframes dialog-in { from { opacity: 0; transform: translateY(12px) scale(.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+.tv-shell--dialog .welcome-copy > *, .tv-shell--dialog .information-sheet, .tv-shell--dialog .information-copy, .tv-shell--dialog .attraction-caption { animation-play-state: paused; }
 .pairing { border-left: 2px solid var(--gold); padding-left: 1vw; margin-top: 2vh; }
 .pairing strong { display: block; letter-spacing: .2em; font-size: 1.7vw; margin-top: .5vh; color: #f4d18c; }
 .pairing p { font-size: .8vw; max-width: 40vw; color: #e0d2b7; }
@@ -103,8 +107,10 @@ footer { border-top: 1px solid #ffffff20; padding-top: 2vh; color: #d1c6b2; font
 .attraction-stage { overflow: hidden; background: radial-gradient(ellipse at 70% 30%, #514325, #15180f); }
 .attraction-frame { position: absolute; inset: 0; opacity: 0; transition: opacity .9s ease; }
 .attraction-frame.is-active { opacity: 1; }
-.attraction-frame img { width: 100%; height: 100%; object-fit: cover; transform: scale(1.025); transition: transform 9s linear; }
-.attraction-frame.is-active img { transform: scale(1.075); }
+.attraction-frame img { width: 100%; height: 100%; object-fit: cover; transform: scale(1.025); }
+.attraction-frame.is-active img { animation: gallery-zoom 9s linear both; will-change: transform; }
+.photo-carousel[data-playing="false"] .attraction-frame img { animation-play-state: paused; }
+@keyframes gallery-zoom { from { transform: scale(1.025); } to { transform: scale(1.075); } }
 .attraction-shade { position: absolute; inset: 0; background: linear-gradient(90deg, #050705db 0%, #05070570 40%, #05070518 62%, #050705bd 74%, #050705f0 100%), linear-gradient(180deg, #0007 0%, transparent 32%, #0005 60%, #000e 100%); }
 .attraction-caption { position: absolute; left: 5vw; bottom: 23vh; width: 60vw; animation: reveal-up .65s both; }
 .attraction-caption .eyebrow { color: #f5d9a1; font-size: .7vw; }

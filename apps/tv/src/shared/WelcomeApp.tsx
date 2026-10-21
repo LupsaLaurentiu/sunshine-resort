@@ -80,6 +80,14 @@ export function WelcomeApp({ content, platform, connectionStatus, pairingCode }:
       if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) return;
       event.preventDefault();
       const current = document.activeElement as HTMLElement;
+      // The dialog has a fixed two-button row; no layout measurements are needed.
+      if (exitRequested) {
+        const buttons = root.current?.querySelectorAll<HTMLButtonElement>('[role="dialog"] button');
+        if (!current.matches('[role="dialog"] button')) buttons?.[0]?.focus();
+        else if (event.key === 'ArrowLeft') buttons?.[0]?.focus();
+        else if (event.key === 'ArrowRight') buttons?.[1]?.focus();
+        return;
+      }
       // Section items and the language row form an explicit remote-control path.
       if (!exitRequested && current.matches('.section-navigation [data-section]')) {
         const items = Array.from(root.current?.querySelectorAll<HTMLButtonElement>('.section-navigation [data-section]') ?? []);
@@ -108,7 +116,7 @@ export function WelcomeApp({ content, platform, connectionStatus, pairingCode }:
         root.current?.querySelector<HTMLButtonElement>(`.section-navigation [data-section="${section}"]`)?.focus();
         return;
       }
-      const buttons = Array.from(root.current?.querySelectorAll<HTMLButtonElement>(exitRequested ? '[role="dialog"] button:not(:disabled)' : 'button:not(:disabled)') ?? []).filter(button => button.getClientRects().length > 0);
+      const buttons = Array.from(root.current?.querySelectorAll<HTMLButtonElement>('button:not(:disabled)') ?? []).filter(button => !button.closest('.overlay') && button.getClientRects().length > 0);
       if (!buttons.includes(current as HTMLButtonElement)) { buttons[0]?.focus(); return; }
       const box = current.getBoundingClientRect();
       const horizontal = event.key === 'ArrowLeft' || event.key === 'ArrowRight';
@@ -125,7 +133,7 @@ export function WelcomeApp({ content, platform, connectionStatus, pairingCode }:
     return () => document.removeEventListener('keydown', keydown);
   }, [section, platform, exitRequested]);
 
-  return <div className={`tv-shell${isGallery ? ' tv-shell--gallery' : ''}`} ref={root} lang={language} data-section={section}>
+  return <div className={`tv-shell${isGallery ? ' tv-shell--gallery' : ''}${exitRequested ? ' tv-shell--dialog' : ''}`} ref={root} lang={language} data-section={section}>
     {isGallery && <PhotoCarousel key={section} gallery={section === 'welcome' ? 'resort' : 'attractions'} language={language} paused={exitRequested} recommendations={localized?.attractions} />}
     <header className="topbar">
       <div className="brand"><img className="brand-logo" src="./logo-sunshine.png" alt="Sunshine Resort" /><div>{content.resortName}<small>ADULTS ONLY · MARAMUREȘ</small></div></div>
@@ -148,12 +156,12 @@ export function WelcomeApp({ content, platform, connectionStatus, pairingCode }:
       </section>}
     </main>
     <footer><span>{t.keys}</span><span className={offline ? 'offline-note' : ''}>{offline ? t.offline : t.checkout}</span></footer>
-    {exitRequested && <div className="overlay"><section className="exit-dialog" role="dialog" aria-modal="true" aria-labelledby="exit-title" aria-describedby="exit-description">
+    <div className={`overlay${exitRequested ? ' is-open' : ''}`} inert={!exitRequested} aria-hidden={!exitRequested}><section className="exit-dialog" role={exitRequested ? 'dialog' : undefined} aria-modal={exitRequested ? true : undefined} aria-labelledby="exit-title" aria-describedby="exit-description">
       <div className="exit-dialog-mark" aria-hidden="true"><img src="./logo-sunshine.png" alt="" /></div>
       <p className="eyebrow">SUNSHINE RESORT</p><div className="exit-dialog-divider" />
       <h2 id="exit-title">{t.exitTitle}</h2><p id="exit-description" className="exit-dialog-description">{t.exitHint}</p>
       <div className="exit-dialog-actions"><button className="exit-dialog-stay action-button" onClick={() => setExitRequested(false)}><ArrowIcon direction="left" /><span>{t.stay}</span></button><button className="exit-dialog-leave action-button" onClick={platform.exit}><TvIcon /><span>{t.close}</span></button></div>
       <p className="exit-dialog-help"><span><kbd>OK</kbd> {t.exitSelect}</span><span><kbd>Back</kbd> {t.exitBack}</span></p>
-    </section></div>}
+    </section></div>
   </div>;
 }

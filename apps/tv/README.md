@@ -171,7 +171,7 @@ npm run tv:launch
 
 If the app is already closed, the close command may report it is not running;
 continue with install. Current package path:
-`artifacts/com.sunshine.resort.welcome.poc_0.3.5_all.ipk`.
+`artifacts/com.sunshine.resort.welcome.poc_0.3.6_all.ipk`.
 If changing manifest version or ID, also update scripts with explicit package names.
 
 ## Hardware test record
