@@ -4,6 +4,7 @@ import request from 'supertest';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { AdminTvController, PairingRateGuard, TvController, TvTransportGuard } from './tv.controller';
 import { TvService } from './tv.service';
+import { TvSettingsService } from './tv-settings.service';
 
 describe('TV transport and authorization HTTP boundary', () => {
   let app: INestApplication;
@@ -18,7 +19,7 @@ describe('TV transport and authorization HTTP boundary', () => {
       content: jest.fn().mockResolvedValue({ mode: 'STANDARD', guest: null }),
       list: jest.fn(), approve: jest.fn() };
     const module = await Test.createTestingModule({ controllers: [TvController, AdminTvController],
-      providers: [TvTransportGuard, PairingRateGuard, { provide: TvService, useValue: service }] })
+      providers: [TvTransportGuard, PairingRateGuard, { provide: TvService, useValue: service }, { provide: TvSettingsService, useValue: { get: jest.fn(), save: jest.fn() } }] })
       .overrideGuard(JwtAuthGuard).useValue({ canActivate: () => { throw new UnauthorizedException(); } }).compile();
     app = module.createNestApplication();
     app.setGlobalPrefix('api');

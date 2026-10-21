@@ -1,0 +1,21 @@
+CREATE TABLE "TvResortSettings" (
+  "id" TEXT NOT NULL DEFAULT 'resort',
+  "wifiSsid" TEXT NOT NULL DEFAULT '',
+  "wifiPassword" TEXT NOT NULL DEFAULT '',
+  "taglineRo" TEXT NOT NULL DEFAULT '',
+  "taglineEn" TEXT NOT NULL DEFAULT '',
+  "houseRulesRo" TEXT NOT NULL DEFAULT '',
+  "houseRulesEn" TEXT NOT NULL DEFAULT '',
+  "facilitiesRo" TEXT NOT NULL DEFAULT '',
+  "facilitiesEn" TEXT NOT NULL DEFAULT '',
+  "attractionsRo" TEXT NOT NULL DEFAULT '',
+  "attractionsEn" TEXT NOT NULL DEFAULT '',
+  "usefulInfoRo" TEXT NOT NULL DEFAULT '',
+  "usefulInfoEn" TEXT NOT NULL DEFAULT '',
+  "contactRo" TEXT NOT NULL DEFAULT '',
+  "contactEn" TEXT NOT NULL DEFAULT '',
+  "updatedAt" TIMESTAMP(3) NOT NULL,
+  "updatedByAdminId" TEXT,
+  CONSTRAINT "TvResortSettings_pkey" PRIMARY KEY ("id"),
+  CONSTRAINT "TvResortSettings_singleton" CHECK ("id" = 'resort')
+);

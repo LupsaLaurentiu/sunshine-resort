@@ -465,6 +465,26 @@ model BlockedPeriod {
   @@index([createdByAdminId])
 }
 
+model TvResortSettings {
+  id             String   @id @default("resort")
+  wifiSsid       String   @default("")
+  wifiPassword   String   @default("")
+  taglineRo      String   @default("")
+  taglineEn      String   @default("")
+  houseRulesRo   String   @default("")
+  houseRulesEn   String   @default("")
+  facilitiesRo   String   @default("")
+  facilitiesEn   String   @default("")
+  attractionsRo  String   @default("")
+  attractionsEn  String   @default("")
+  usefulInfoRo   String   @default("")
+  usefulInfoEn   String   @default("")
+  contactRo      String   @default("")
+  contactEn      String   @default("")
+  updatedAt      DateTime @updatedAt
+  updatedByAdminId String?
+}
+
 model ExternalCalendar {
   id     String                 @id @default(cuid())
   roomId String

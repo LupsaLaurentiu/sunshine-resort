@@ -3,6 +3,7 @@ import type { TvPlatform } from './contracts';
 import { standardContent } from './demo-api';
 import { newTvIdentity, parseReservationContent, validateTvApi } from './reservation-api';
 import { WelcomeApp } from './WelcomeApp';
+import { withoutGuest } from './resort-information';
 
 export function ReservationWelcome({ platform, api }: { platform: TvPlatform; api: string }) {
   const [content, setContent] = useState(standardContent);
@@ -13,7 +14,7 @@ export function ReservationWelcome({ platform, api }: { platform: TvPlatform; ap
     let request: AbortController | null = null;
     let timer: number | undefined, expiry: number | undefined;
     let pendingPairingUntil = 0, secret = '', base = '';
-    const clear = () => { clearTimeout(expiry); setContent(standardContent); };
+    const clear = (retainResort = true) => { clearTimeout(expiry); setContent(previous => retainResort ? withoutGuest(previous) : standardContent); };
     try {
       base = validateTvApi(api);
       if (!platform.readIdentity || !platform.saveIdentity) throw new Error('Storage unavailable');
@@ -31,7 +32,7 @@ export function ReservationWelcome({ platform, api }: { platform: TvPlatform; ap
         const response = await fetch(`${base}/tv/me/content`, { signal: controller.signal, credentials: 'omit', cache: 'no-store', headers: { Authorization: `Bearer ${secret}` } });
         if (stopped || controller.signal.aborted || document.hidden) return;
         if (response.status === 401) {
-          clear();
+          clear(false);
           const reason = await response.json();
           if (reason.code === 'TV_DISABLED') { setStatus('Apartment disabled · contact administrator'); return; }
           if (Date.now() >= pendingPairingUntil) {

@@ -1,4 +1,4 @@
-import { Body, CanActivate, Controller, ExecutionContext, Get, Header, Headers, HttpException, Injectable, Module, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { Body, CanActivate, Controller, ExecutionContext, Get, Header, Headers, HttpException, Injectable, Module, Param, Patch, Post, Put, UseGuards } from '@nestjs/common';
 import type { Request } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentAdmin } from '../common/decorators/current-admin.decorator';
@@ -6,6 +6,7 @@ import type { CurrentAdminData } from '../common/decorators/current-admin.decora
 import { PrismaModule } from '../prisma/prisma.module';
 import { TvService } from './tv.service';
 import { ApproveTvPairingDto, BeginTvPairingDto, UpdateTvDeviceDto } from './tv.dto';
+import { TvSettingsService, UpdateTvSettingsDto } from './tv-settings.service';
 
 @Injectable()
 export class TvTransportGuard implements CanActivate {
@@ -54,7 +55,13 @@ export class TvController {
 @Controller('admin/tv')
 @UseGuards(TvTransportGuard, JwtAuthGuard)
 export class AdminTvController {
-  constructor(private readonly tv: TvService) {}
+  constructor(private readonly tv: TvService, private readonly settings: TvSettingsService) {}
+  @Get('settings')
+  @Header('Cache-Control', 'no-store')
+  settingsContent() { return this.settings.get(); }
+  @Put('settings')
+  @Header('Cache-Control', 'no-store')
+  saveSettings(@Body() dto: UpdateTvSettingsDto, @CurrentAdmin() admin: CurrentAdminData) { return this.settings.save(dto, admin.id); }
   @Get('devices')
   @Header('Cache-Control', 'no-store')
   list() { return this.tv.list(); }
@@ -68,5 +75,5 @@ export class AdminTvController {
   revoke(@Param('id') id: string) { return this.tv.revoke(id); }
 }
 
-@Module({ imports: [PrismaModule], controllers: [TvController, AdminTvController], providers: [TvService, TvTransportGuard, PairingRateGuard] })
+@Module({ imports: [PrismaModule], controllers: [TvController, AdminTvController], providers: [TvService, TvSettingsService, TvTransportGuard, PairingRateGuard] })
 export class TvModule {}

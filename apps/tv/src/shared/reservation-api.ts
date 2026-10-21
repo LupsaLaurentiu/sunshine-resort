@@ -1,4 +1,5 @@
 import type { WelcomeContent } from './contracts';
+import { parseResortInformation } from './resort-information.ts';
 
 export function validateTvApi(base: string): string {
   const url = new URL(base);
@@ -23,6 +24,7 @@ export function parseReservationContent(value: unknown): { content: WelcomeConte
     !Array.isArray(data.information) || data.information.length > 8 ||
     !data.information.every(item => item && typeof item.title === 'string' && typeof item.text === 'string')) throw new Error('Invalid TV response');
   return { content: { mode: data.mode as 'GUEST' | 'STANDARD',
+    resortInformation: parseResortInformation(data.resortInformation),
     guest: data.mode === 'GUEST' ? { displayName: guest!.displayName as string } : null,
     resortName: data.resortName, tagline: data.tagline,
     information: data.information.map(item => ({ title: item.title, text: item.text })) },

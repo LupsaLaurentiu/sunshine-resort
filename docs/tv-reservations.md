@@ -1,5 +1,32 @@
 # Reservation-driven TV integration
 
+## Resort information and branding (2026-10-21)
+
+PMS → Setări now contains a bilingual editor for Wi-Fi, tagline, house rules,
+facilities, attractions, useful information and contact. GET/PUT
+`/api/admin/tv/settings` require HTTPS and the existing admin JWT. These values
+are sent only through authenticated device content responses, never a public
+resort endpoint. Wi-Fi credentials are not bundled in the app or logged.
+
+`TvResortSettings` is a single row, loaded with a 15-second per-process cache and
+shared concurrent reads. Saving invalidates that process's cache. TV polling
+refreshes every 30 seconds; allow up to approximately 45 seconds across instances.
+No default Wi-Fi credentials or unapproved house rules are supplied. Initial
+attraction names come from the existing public website and can be edited.
+
+The TV reuses `apps/web/public/logo-sunshine.png`, copied automatically during the
+build, and the resort's black/gold palette. RO/EN can be switched with the remote.
+Six information sections have directional focus navigation; long text is paginated
+to fit the television's safe area. Guest lease expiry/network errors clear the
+name but retain the last resort information in memory. An authentication failure
+clears both. No guest or Wi-Fi content is written to localStorage; only the existing
+revocable device credential is persisted by the webOS adapter.
+
+Validation: schema validation, settings authorization/validation/cache tests,
+reservation/privacy tests, TV response/pagination tests, website production build
+and a 1920×1080 browser check using fictional data. Physical TV verification and
+production publication are recorded separately when completed.
+
 Implemented scope: secure TV registration, one active TV per physical apartment,
 admin assignment/revocation/privacy controls, and reservation-derived content.
 The existing demo remains available separately. No booking, payment or scheduler

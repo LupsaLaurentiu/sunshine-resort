@@ -1,5 +1,6 @@
 import { TvService, hashTvSecret } from './tv.service';
 import type { PrismaService } from '../prisma/prisma.service';
+import type { TvSettingsService } from './tv-settings.service';
 
 describe('TV identity and apartment authorization', () => {
   let db: any;
@@ -11,7 +12,7 @@ describe('TV identity and apartment authorization', () => {
       room: { findFirst: jest.fn() }, reservation: { findMany: jest.fn().mockResolvedValue([]) },
     };
     db.$transaction = jest.fn(callback => callback(db));
-    service = new TvService(db as PrismaService);
+    service = new TvService(db as PrismaService, { forTelevision: jest.fn().mockResolvedValue({ wifi: { ssid: '', password: '' }, ro: {}, en: {} }) } as unknown as TvSettingsService);
   });
 
   it('persists only hashes during pairing, never the bearer credential', async () => {
@@ -45,6 +46,7 @@ describe('TV identity and apartment authorization', () => {
     for (const flags of [{ hideGuestName: true, forceStandard: false }, { hideGuestName: false, forceStandard: true }]) {
       const content = await service.content({ roomId: 'room', ...flags });
       expect(content.mode).toBe('STANDARD'); expect(content.guest).toBeNull();
+      expect(content.resortInformation.wifi).toEqual({ ssid: '', password: '' });
     }
     expect(db.reservation.findMany).not.toHaveBeenCalled();
   });

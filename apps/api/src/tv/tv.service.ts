@@ -5,12 +5,13 @@ import type { TvDevice } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { resolveGuest } from './reservation-content';
 import type { UpdateTvDeviceDto } from './tv.dto';
+import { TvSettingsService } from './tv-settings.service';
 
 export const hashTvSecret = (secret: string) => createHash('sha256').update(secret).digest('hex');
 
 @Injectable()
 export class TvService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService, private readonly settings: TvSettingsService) {}
 
   async begin(secret: string) {
     const now = new Date();
@@ -58,6 +59,7 @@ export class TvService {
   }
 
   async content(device: Pick<TvDevice, 'roomId' | 'forceStandard' | 'hideGuestName'>, now = new Date()) {
+    const resortInformation = await this.settings.forTelevision();
     let guest: ReturnType<typeof resolveGuest> = null;
     if (device.roomId && !device.forceStandard && !device.hideGuestName) {
       // Wider date envelope is filtered precisely using local check-in/out instants.
@@ -76,6 +78,7 @@ export class TvService {
       serverTime: now.toISOString(),
       validUntil: new Date(Math.min(now.getTime() + 45_000, guest?.checkOut.getTime() ?? Infinity)).toISOString(),
       resortName: 'SUNSHINE RESORT', tagline: 'Your private escape into luxury.',
+      resortInformation,
       information: [{ title: 'Your stay', text: 'Check-in 14:00 · Check-out 10:00. Please contact the resort for assistance.' }],
     };
   }
