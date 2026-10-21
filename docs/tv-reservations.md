@@ -22,10 +22,16 @@ name but retain the last resort information in memory. An authentication failure
 clears both. No guest or Wi-Fi content is written to localStorage; only the existing
 revocable device credential is persisted by the webOS adapter.
 
-Validation: schema validation, settings authorization/validation/cache tests,
-reservation/privacy tests, TV response/pagination tests, website production build
-and a 1920×1080 browser check using fictional data. Physical TV verification and
-production publication are recorded separately when completed.
+Validation: schema validation, 38 API tests, eight TV client tests, API/website/TV
+production builds and a 1920×1080 browser check using fictional data passed.
+The additive settings migration was applied on 2026-10-21. Commit `2bed474` was
+published to Render and Vercel with explicit user approval. The protected settings
+route returns 401 without authentication. The updated real-mode package was
+installed and launched on the personal LG OLED55B53LA; inspector checks confirmed
+the existing pairing survived, the current logo loaded, all six information
+sections appeared, and both RO/EN attraction content arrived from the API, without
+document overflow at 1920×1080. Wi-Fi, house rules and other unpublished details
+must still be entered by the operator in PMS Settings.
 
 Implemented scope: secure TV registration, one active TV per physical apartment,
 admin assignment/revocation/privacy controls, and reservation-derived content.
@@ -35,19 +41,19 @@ business rules were changed.
 ## Current validation and blockers
 
 - Prisma schema validation and client generation passed.
-- API build, 32 targeted API tests, five TV client tests and the full website
+- API build, 38 targeted API tests, eight TV client tests and the full website
   production build passed.
 - Supabase was resumed and the additive TV migration was applied successfully
   on 2026-10-18. No existing reservation or payment records were changed.
 - The existing public backend is `https://sunshine-resort-api.onrender.com/api`.
   The real-mode LG package is configured locally against that HTTPS endpoint.
-- The installed LG application is still the earlier fictional-data demo. Physical
-  pairing and real reservation display have not been tested.
+- The LG runs the real-reservation application, paired to DELUXE-01. Real guest
+  display was verified during the eligible stay on 2026-10-19; the branded resort
+  information update was installed and inspected on 2026-10-21.
 
-The user authorized selecting any apartment for the personal LG. Once database
-access is restored, use the first available active apartment by code. Do not create
-or change a real reservation just to make a name appear; no eligible stay correctly
-produces the standard welcome.
+The user authorized selecting any apartment for the personal LG, subsequently
+paired to DELUXE-01. Do not create or change a real reservation just to make a name
+appear; no eligible stay correctly produces the standard welcome.
 
 ## Deployment order
 
@@ -89,9 +95,10 @@ produces the standard welcome.
    `npm run tv:install` continues to refer to the separate demo artifact directory.
    Do not install a real-mode package before the backend is ready.
 
-8. The TV shows a temporary pairing code. In PMS → Televizoare, enter the code and
-   select the physical apartment, then associate. The TV retries and displays its
-   apartment's current content without any client-supplied room ID.
+8. If not already paired, the TV shows a temporary pairing code. In PMS → Camere,
+   enter it on the physical apartment's TV card, then associate. Existing pairing
+   survives ordinary app updates; the code is not required on every launch. The TV
+   retries and displays its apartment's content without a client-supplied room ID.
 
 ## Identity and API
 
@@ -171,8 +178,11 @@ After deployment and pairing, record actual results:
 - Hide the name, force standard, reassign and revoke from the PMS.
 - Confirm Home/Back and other TV applications still work normally.
 
-All real-mode hardware checks currently remain **NOT TESTED**. The earlier LG
-autostart limitation and decision to validate the final resort hardware still apply.
+Pairing persistence, real guest display and the resort information checks recorded
+above have been verified on the personal LG. The remaining lifecycle, exact-time,
+offline and administration acceptance scenarios still require physical validation;
+automated tests do not replace that checklist. The earlier LG autostart limitation
+and decision to validate the final resort hardware still apply.
 
 Official migration reference:
 https://www.prisma.io/docs/orm/v6/prisma-migrate/workflows/development-and-production
