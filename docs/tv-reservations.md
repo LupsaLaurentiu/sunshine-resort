@@ -1,5 +1,22 @@
 # Reservation-driven TV integration
 
+## Bundled Montserrat typography (0.3.5)
+
+The entire TV interface now uses Montserrat Variable, including headings, sidebar,
+buttons, information, Wi-Fi details and the exit dialog. Both normal and genuine
+italic faces are bundled through `@fontsource-variable/montserrat` 5.3.0, with
+Romanian diacritics and the font's other supplied character sets. Vite emits local
+WOFF2 assets, so the TV does not contact a font CDN. The package's original font
+license is copied into the IPK as `Montserrat-OFL.txt`. The existing logo image is
+reused as before.
+
+Validation: TypeScript/Vite/IPK build and browser checks confirmed actual custom-font
+rendering, local font requests, Romanian diacritics, normal/italic faces, all UI
+font families, long Wi-Fi values, pagination, RO/EN and 1080p/720p bounds. Version
+0.3.5 was installed on the personal LG; inspector checks confirmed actual Montserrat
+rendering, loaded normal/italic diacritics, local font files, preserved pairing and
+no document overflow.
+
 ## Horizontal action arrows (0.3.4)
 
 Welcome and Recommendations now use horizontal right-pointing arrows. Back and
@@ -251,7 +268,7 @@ appear; no eligible stay correctly produces the standard welcome.
    npm test
    npm run package:reservations
    npm run tv:close
-   npm exec -- ares-install --device sunshine-lg artifacts/reservations/com.sunshine.resort.welcome.poc_0.3.4_all.ipk
+   npm exec -- ares-install --device sunshine-lg artifacts/reservations/com.sunshine.resort.welcome.poc_0.3.5_all.ipk
    npm run tv:launch
    ```
 

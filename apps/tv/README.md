@@ -16,6 +16,7 @@ guest only; no device credentials, local guest storage, migrations or PMS change
 - `webos/appinfo.json`: LG package manifest.
 - `scripts/prepare-assets.mjs`: reuses the website logo and optimizes separate room/pool and Maramureș galleries for offline TV playback.
 - `scripts/prepare-webos.mjs`: copies the manifest and renders 80/130px launcher icons from the existing Sunshine Resort logo; `sharp` is a build-only dependency.
+- Typography: [Montserrat Variable](https://fontsource.org/fonts/montserrat) is bundled locally in normal/italic faces, including Romanian diacritics. The IPK contains the original font license as `Montserrat-OFL.txt`.
 - `dist`: generated, packaged static application with relative asset paths.
 - `artifacts`: generated `.ipk`; not committed.
 
@@ -170,7 +171,7 @@ npm run tv:launch
 
 If the app is already closed, the close command may report it is not running;
 continue with install. Current package path:
-`artifacts/com.sunshine.resort.welcome.poc_0.3.4_all.ipk`.
+`artifacts/com.sunshine.resort.welcome.poc_0.3.5_all.ipk`.
 If changing manifest version or ID, also update scripts with explicit package names.
 
 ## Hardware test record

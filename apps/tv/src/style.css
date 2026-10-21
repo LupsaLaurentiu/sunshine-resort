@@ -1,5 +1,5 @@
 * { box-sizing: border-box; }
-:root { font-family: Arial, sans-serif; color: #f5f2eb; background: #050505; font-synthesis: none; --gold: #c9a65a; }
+:root { --font-ui: 'Montserrat Variable', sans-serif; font-family: var(--font-ui); color: #f5f2eb; background: #050505; font-synthesis: none; --gold: #c9a65a; }
 body { margin: 0; }
 .tv-shell { position: relative; isolation: isolate; height: 100vh; min-height: 540px; overflow: hidden; padding: 4vh 5vw 3vh; display: flex; flex-direction: column; background: radial-gradient(ellipse at 80% 50%, #30271950, transparent 65%), #080908; }
 button { font: inherit; cursor: pointer; background: var(--gold); border: 1px solid var(--gold); color: #090a08; font-size: 1.05vw; padding: .95vw 1.4vw; transition: background-color .22s, border-color .22s, color .22s, transform .22s; }
@@ -11,7 +11,7 @@ button:disabled { cursor: default; opacity: .25; }
 .topbar { padding-bottom: 2vh; border-bottom: 1px solid #ffffff20; }
 .brand { justify-content: flex-start; gap: 1.2vw; color: #f2d9a3; letter-spacing: .22em; font-size: 1.1vw; }
 .brand-logo { width: 4.8vw; height: 6vw; max-height: 10vh; object-fit: contain; filter: brightness(0) invert(1); }
-small { display: block; font: .65vw Arial, sans-serif; letter-spacing: .2em; margin-top: .7vw; color: #d1c6b2; }
+small { display: block; font: .65vw var(--font-ui); letter-spacing: .2em; margin-top: .7vw; color: #d1c6b2; }
 .header-actions { gap: 2vw; }
 button.exit-button { display: inline-flex; align-items: center; gap: .7vw; font-size: .8vw; padding: .7vw .2vw; background: transparent; border-color: transparent; border-bottom-color: #ffffff25; }
 button.exit-button:focus, button.exit-button:hover { outline: none; border-bottom-color: #e8cd92; color: #ffedc4; text-shadow: 0 0 16px #f2d39b55; }
@@ -20,15 +20,15 @@ time { font-size: 1.8vw; text-align: right; }
 main { flex: 1; min-height: 0; display: flex; align-items: center; padding: 3vh 0; width: 64vw; }
 .tv-shell--gallery main { pointer-events: none; }
 .eyebrow { color: #e6c783; letter-spacing: .28em; font-size: .8vw; margin: 0 0 2.4vh; }
-h1 { font: 4.5vw/1.12 Georgia, serif; font-weight: normal; margin: 0; letter-spacing: -.025em; }
+h1 { font: 4.5vw/1.12 var(--font-ui); font-weight: normal; margin: 0; letter-spacing: -.025em; }
 h1 span { color: #ead09a; overflow-wrap: anywhere; }
-h2 { font: 2.7vw/1.15 Georgia, serif; color: #f1d9a7; font-weight: normal; margin: 0 0 2vh; }
+h2 { font: 2.7vw/1.15 var(--font-ui); color: #f1d9a7; font-weight: normal; margin: 0 0 2vh; }
 .gold-line { width: 4.5vw; height: 1px; background: var(--gold); margin: 3vh 0; }
 .welcome { height: 100%; width: 100%; display: flex; align-items: center; padding-bottom: 16vh; }
 .welcome-copy { pointer-events: auto; width: 62vw; max-width: 100%; }
 .welcome h1 { text-shadow: 0 2px 24px #0008; }
 .welcome h1.compact-welcome { font-size: 3.1vw; }
-.tagline { font: italic 1.65vw/1.4 Georgia, serif; color: #eee2cc; max-width: 56vw; }
+.tagline { font: italic 1.65vw/1.4 var(--font-ui); color: #eee2cc; max-width: 56vw; }
 .welcome-actions { display: flex; flex-wrap: wrap; gap: 1.1vw; margin-top: 3vh; }
 .action-button { display: inline-flex; align-items: center; justify-content: center; gap: 1.4vw; }
 .action-icon { display: block; flex: 0 0 auto; width: 1.3vw; height: 1.3vw; transition: transform .28s cubic-bezier(.2,.8,.2,1); }
@@ -64,8 +64,8 @@ footer { border-top: 1px solid #ffffff20; padding-top: 2vh; color: #d1c6b2; font
 .information-copy { margin: 0; font-size: 1.4vw; line-height: 1.55; color: #e6e1d5; white-space: pre-wrap; overflow-wrap: anywhere; animation: reveal-up .3s both; }
 .empty-copy { font-size: 1.4vw; color: #d1c9b9; line-height: 1.6; }
 .field-label { color: #c7bca6; font-size: .85vw; text-transform: uppercase; letter-spacing: .2em; margin: 1.5vh 0; }
-.wifi-network { font: 2.1vw/1.3 Georgia, serif; color: #f5efdf; margin: 0 0 3vh; overflow-wrap: anywhere; }
-.wifi-password { font: 1.8vw/1.4 monospace; color: #e4c484; margin: 0; overflow-wrap: anywhere; }
+.wifi-network { font: 2.1vw/1.3 var(--font-ui); color: #f5efdf; margin: 0 0 3vh; overflow-wrap: anywhere; }
+.wifi-password { font: 1.8vw/1.4 var(--font-ui); color: #e4c484; margin: 0; overflow-wrap: anywhere; }
 .pagination { margin-top: 2.5vh; padding-top: 1vh; display: flex; justify-content: space-between; align-items: center; color: #d1c5ac; font-size: .9vw; }
 .pagination > div { display: flex; gap: .8vw; }
 .pagination button { display: inline-flex; align-items: center; justify-content: center; padding: .6vw 1vw; }
@@ -84,7 +84,7 @@ footer { border-top: 1px solid #ffffff20; padding-top: 2vh; color: #d1c6b2; font
 .exit-dialog-actions button:focus, .exit-dialog-actions button:hover { outline: none; transform: translateY(-2px); border-color: #e8d3a488; box-shadow: 0 0 0 1px #ead4a333, 0 6px 28px #d4b47720; }
 .exit-dialog-leave:focus, .exit-dialog-leave:hover { background: #d4b47713; color: #fff0cf; }
 .exit-dialog-help { margin: 2.6vh 0 0; display: flex; justify-content: center; gap: 1.8vw; color: #aca38e; font-size: .7vw; }
-.exit-dialog-help kbd { margin-right: .35vw; font: .65vw Arial, sans-serif; color: #d6c8aa; border: 1px solid #d6c8aa25; border-radius: .2vw; padding: .2vw .35vw; }
+.exit-dialog-help kbd { margin-right: .35vw; font: .65vw var(--font-ui); color: #d6c8aa; border: 1px solid #d6c8aa25; border-radius: .2vw; padding: .2vw .35vw; }
 @keyframes overlay-in { from { opacity: 0; } to { opacity: 1; } }
 @keyframes dialog-in { from { opacity: 0; transform: translateY(12px) scale(.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
 .pairing { border-left: 2px solid var(--gold); padding-left: 1vw; margin-top: 2vh; }
@@ -108,7 +108,7 @@ footer { border-top: 1px solid #ffffff20; padding-top: 2vh; color: #d1c6b2; font
 .attraction-shade { position: absolute; inset: 0; background: linear-gradient(90deg, #050705db 0%, #05070570 40%, #05070518 62%, #050705bd 74%, #050705f0 100%), linear-gradient(180deg, #0007 0%, transparent 32%, #0005 60%, #000e 100%); }
 .attraction-caption { position: absolute; left: 5vw; bottom: 23vh; width: 60vw; animation: reveal-up .65s both; }
 .attraction-caption .eyebrow { color: #f5d9a1; font-size: .7vw; }
-.attraction-caption h2 { font: 4vw/1.1 Georgia, serif; color: #fff0cd; font-weight: normal; margin: 0 0 1.5vh; }
+.attraction-caption h2 { font: 4vw/1.1 var(--font-ui); color: #fff0cd; font-weight: normal; margin: 0 0 1.5vh; }
 .attraction-caption > p:last-child { margin: 0; font-size: 1.25vw; line-height: 1.5; color: #f1e7d3; max-width: 58vw; }
 .photo-carousel--resort .attraction-caption { bottom: 20vh; }
 .photo-carousel--resort .attraction-caption h2 { font-size: 1.7vw; margin-bottom: .8vh; }

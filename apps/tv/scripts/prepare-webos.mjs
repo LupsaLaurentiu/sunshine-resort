@@ -2,6 +2,7 @@ import { copyFile } from 'node:fs/promises';
 import sharp from 'sharp';
 
 await copyFile('webos/appinfo.json', 'dist/appinfo.json');
+await copyFile('node_modules/@fontsource-variable/montserrat/LICENSE', 'dist/Montserrat-OFL.txt');
 // The same white rendition as the in-app logo, preserving the original alpha.
 const { data, info } = await sharp('public/logo-sunshine.png').ensureAlpha().raw().toBuffer({ resolveWithObject: true });
 for (let pixel = 0; pixel < data.length; pixel += 4) {

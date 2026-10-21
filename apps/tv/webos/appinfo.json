@@ -1,6 +1,6 @@
 {
   "id": "com.sunshine.resort.welcome.poc",
-  "version": "0.3.4",
+  "version": "0.3.5",
   "vendor": "Sunshine Resort",
   "type": "web",
   "main": "index.html",
