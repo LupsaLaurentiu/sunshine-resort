@@ -1,10 +1,10 @@
 {
   "id": "com.sunshine.resort.welcome.poc",
-  "version": "0.1.0",
+  "version": "0.3.4",
   "vendor": "Sunshine Resort",
   "type": "web",
   "main": "index.html",
-  "title": "Sunshine Welcome PoC",
+  "title": "Sunshine Resort",
   "icon": "icon.png",
   "largeIcon": "largeIcon.png",
   "resolution": "1920x1080",

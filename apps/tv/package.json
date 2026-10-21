@@ -1,6 +1,6 @@
 {
   "name": "sunshine-tv-poc",
-  "version": "0.1.0",
+  "version": "0.3.4",
   "private": true,
   "type": "module",
   "scripts": {
@@ -16,7 +16,7 @@
     "device:setup": "ares-setup-device",
     "device:key": "ares-novacom --device sunshine-lg --getkey",
     "device:info": "ares-device --device sunshine-lg --system-info",
-    "tv:install": "ares-install --device sunshine-lg artifacts/com.sunshine.resort.welcome.poc_0.1.0_all.ipk",
+    "tv:install": "ares-install --device sunshine-lg artifacts/com.sunshine.resort.welcome.poc_0.3.4_all.ipk",
     "tv:launch": "ares-launch --device sunshine-lg com.sunshine.resort.welcome.poc",
     "tv:close": "ares-launch --device sunshine-lg --close com.sunshine.resort.welcome.poc",
     "tv:inspect": "ares-inspect --device sunshine-lg --app com.sunshine.resort.welcome.poc --open"
@@ -29,6 +29,7 @@
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
     "@webos-tools/cli": "3.2.6",
+    "sharp": "0.34.5",
     "typescript": "~5.9.3",
     "vite": "^6.4.0"
   }

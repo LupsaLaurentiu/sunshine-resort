@@ -1,5 +1,169 @@
 # Reservation-driven TV integration
 
+## Horizontal action arrows (0.3.4)
+
+Welcome and Recommendations now use horizontal right-pointing arrows. Back and
+previous-page arrows remain horizontal left-pointing arrows. The diagonal icon
+variant and its upward focus animation were removed; focus movement is horizontal.
+The TypeScript/Vite/IPK build passed and 0.3.4 was installed on the personal LG.
+
+## Refined action icons and exit dialog (0.3.3)
+
+Button arrows now use shared local SVG icons with consistent thin rounded strokes,
+including the welcome action, recommendations/back action and text pagination.
+The header TV-exit action uses a television icon and a subtle underline. No slider
+controls were reintroduced.
+
+The exit dialog reuses the canonical logo and now has a softly blurred/dimmed
+backdrop, a warm gradient surface, rounded corners and gentle entrance motion.
+Its two actions have distinct treatments and a soft focus glow. Stay remains the
+default; arrows navigate between actions, OK confirms and Back dismisses. The
+dialog provides a description for assistive technology and small remote-key hints.
+Reduced motion disables the new transitions/animations.
+
+Validation: TypeScript/Vite/IPK build and browser checks passed for icon rendering,
+dialog branding and layout, default focus, remote arrows/OK/Back, focus isolation,
+cancel behaviour and one simulated platform exit call, gallery suspension, labelled
+pagination, RO/EN, 1080p/720p bounds and reduced motion. The personal LG was updated
+to 0.3.3 with the existing app ID and pairing.
+LG inspector checks confirmed the SVG icons, loaded dialog logo, rounded layout,
+12px backdrop blur, default Stay focus and suspended gallery progress. Remote
+left/right, Stay/OK and Back worked in RO/EN. The real exit action was not invoked
+during this hardware check; its handler was verified once in the isolated browser.
+Home in Romanian was restored afterward.
+
+## Automatic galleries and continuous progress (0.3.2)
+
+The visible countdown, previous/next photo buttons and pause/play control were
+removed from both galleries. Home has no slider controls; the attractions page
+retains the Recommendations button and its separate text pagination.
+
+The progress bar now uses a continuous linear CSS transform animation. Its cycle
+completion advances the photograph, keeping the bar and image change synchronized.
+There is no 100ms polling interval or per-frame React/style update. Opening an exit
+dialog, reading recommendations or hiding the app pauses the same animation and
+resuming continues from its current position. Language changes do not reset it.
+Reduced motion stops autoplay and hides the progress bar; removing that preference
+resumes automatic playback.
+
+Validation: TypeScript/Vite/IPK build and targeted browser checks passed. Progress
+changed in all 24 sampled animation frames without DOM style mutations. Checks
+also covered automatic slide advance at the bar boundary, absence of the removed
+controls, dialog/reading/visibility pause and resume, language continuity, retained
+recommendations pagination, reduced motion and 1080p/720p bounds. The personal LG
+was updated to 0.3.2 with the existing app ID.
+LG inspector checks confirmed the old slider UI is absent, the progress changed
+in all 20 sampled frames, and completing the CSS animation cycle advanced the
+photograph correctly. Recommendations remained accessible and device pairing was
+preserved. Home was restored after verification.
+
+## Glowing text focus and accessible language selection (0.3.1)
+
+Sidebar focus now enlarges the text by 9% with a warm glow and a 280ms transition;
+the rectangular outline/background is removed for sidebar items. The dot has a
+short matching glow animation. Other controls retain their existing focus styles.
+All section labels remain visible, and reduced motion removes the animation.
+
+RO and EN are separate, permanently visible options below the sidebar, labelled
+Română and English. Right from any section focuses the current language; left/right
+moves between RO/EN, and OK selects a language without changing the page. Up returns
+to the sidebar item the guest came from. Down from Contact also reaches the language
+row; left from RO returns to the previous sidebar item. Up from Home reaches the
+header TV-exit button and Down returns to the current section. The footer describes
+the language shortcut. Language changes preserve the current carousel and focus.
+
+Validation: TypeScript/Vite/IPK build and targeted browser checks passed for no-box
+focus, text scale/glow/transition, language access from all seven sections, both
+translations, page/focus preservation, Contact/header paths, dialog focus isolation,
+pointer access, 1080p/720p bounds and reduced motion. The LG package was updated to
+0.3.1 with the same app ID and stored device identity.
+LG inspector verification confirmed a 1.09 text scale, visible glow, transparent
+sidebar button background and no outline. Remote Right reached RO/EN, English
+selection preserved House rules, Up returned to that sidebar item, and the existing
+pairing remained valid. Home in Romanian was restored after verification.
+
+## Separate galleries and persistent section navigation (0.3.0)
+
+The initial Home screen now shows four existing website photographs of apartments
+and the pool. Local attractions is the second page and has its own four Maramureș
+photographs. Both galleries use the same eight-second timer, crossfade, pause/manual
+controls and reduced-motion handling; images are optimized and bundled in the TV
+package. The welcome name appears on Home only. PMS attraction recommendations
+remain available through the Recommendations button on the attractions page.
+
+A persistent right-side menu follows the visual pattern of
+`portfolio-lau/Portfolio/src/MainComponent/SectionNavigation.tsx`: section labels
+with dot indicators. All labels remain visible, including inactive ones; no hover
+is needed. Home, Local attractions, Wi-Fi, House rules, Facilities, Useful information
+and Contact are available on every page, with gold marking the current section.
+Background shading preserves text contrast over both photo collections. Up/down
+moves between sidebar items, OK opens one, and Back returns Home or opens the exit
+dialog from Home. The shared header retains the canonical logo, RO/EN and TV exit.
+
+Validation: eight TV tests and TypeScript/Vite/IPK builds passed. Browser checks
+covered gallery separation, all labels visible, pointer/remote input, autoplay,
+pause/manual controls, all information pages, long Wi-Fi values, text pagination,
+RO/EN, dialogs, reduced motion and 1080p/720p bounds. A separate fictional-guest
+check confirmed the 100-character name fits without overlapping the photo caption
+and is removed immediately on offline events. The personal LG was updated to 0.3.0.
+Inspector checks confirmed existing pairing, loaded room photographs on Home,
+loaded attraction photographs on the second page, all seven labels permanently
+visible, remote section navigation, advancing autoplay and Wi-Fi access. Home was
+restored after verification. One timer check was inconclusive when the selected
+page changed during the observation; a subsequent stable-page check confirmed
+the timer advanced correctly.
+
+## Full-screen welcome gallery (0.2.1)
+
+The initial welcome screen now uses the attraction gallery across the entire TV
+viewport. The guest/standard welcome remains on the left, while slide captions and
+pause/previous/next controls sit at the lower right. Layered gradients keep the
+text readable and controls stay within the TV safe area. Wi-Fi has a direct welcome
+shortcut; Stay information opens the existing bilingual sections. The large duplicate
+welcome emblem was removed; the canonical logo remains in the header and launcher.
+
+The hero reuses the existing carousel timer, local photographs and reduced-motion
+behaviour. An exit dialog pauses autoplay. Entering information unmounts the hero;
+returning opens the full-screen gallery again. Names over 70 characters use smaller
+type, with the 100-character API maximum checked for safe-area fit. Offline handling
+still clears the guest name immediately while retaining resort information.
+
+Validation: eight TV tests and the TypeScript/Vite/IPK build passed. Browser checks
+covered viewport coverage at 1080p/720p, pointer and remote controls, dialog focus,
+Wi-Fi/back navigation, timer/pause, translations, reduced motion and maximum-length
+fictional guest privacy. Version 0.2.1 was installed and launched on the personal LG;
+inspector checks confirmed full-screen photos, loaded images, accessible controls,
+pairing persistence and Wi-Fi/back navigation without document overflow.
+
+## TV animations, photographs and launcher branding (0.2.0)
+
+The TV now has subtle entrance, focus and emblem animations. Attractions includes
+four existing website photographs with bilingual captions, crossfades and a slow
+zoom. Slides advance every eight seconds with a visible progress bar/countdown;
+previous, pause/resume and next are accessible with the remote. Manual navigation
+resets the timer. Autoplay pauses while the document is hidden, a dialog is open
+or the recommendations view is selected. Reduced motion disables animations and
+starts the slideshow paused; the guest can explicitly resume it.
+
+The Recommendations button retains the editable PMS attraction text, including
+pagination. Photo captions describe the existing photographs rather than claiming
+they depict specific monuments. Images are optimized and bundled locally; they do
+not require an external photo host or expose guest data. Changing this bundled
+gallery requires a new TV package, while PMS recommendations update through the API.
+
+The launcher title is Sunshine Resort. Both webOS icon sizes are now rendered from
+the canonical website logo in the same white rendition used in the app. The app ID
+is unchanged so an ordinary update retains the existing device pairing.
+
+Validation: eight TV tests, TypeScript/Vite/IPK build and browser checks for image
+loading, eight-second advance, pause/resume, manual navigation, PMS recommendations,
+pagination, RO/EN, remote arrows/OK, visibility, reduced motion and 1080p bounds passed.
+Version 0.2.0 was installed and launched on the personal LG OLED55B53LA on
+2026-10-21. Inspector checks confirmed pairing persistence, all four locally
+bundled photos loaded, autoplay advanced, pause froze the timer, PMS recommendations
+remained available, and the panel stayed within 1080p bounds. The app was returned
+to its welcome screen after verification.
+
 ## Resort information and branding (2026-10-21)
 
 PMS → Setări now contains a bilingual editor for Wi-Fi, tagline, house rules,
@@ -87,7 +251,7 @@ appear; no eligible stay correctly produces the standard welcome.
    npm test
    npm run package:reservations
    npm run tv:close
-   npm exec -- ares-install --device sunshine-lg artifacts/reservations/com.sunshine.resort.welcome.poc_0.1.0_all.ipk
+   npm exec -- ares-install --device sunshine-lg artifacts/reservations/com.sunshine.resort.welcome.poc_0.3.4_all.ipk
    npm run tv:launch
    ```
 

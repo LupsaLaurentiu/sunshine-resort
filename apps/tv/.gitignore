@@ -1,3 +1,5 @@
 artifacts/
 .npm-cache/
 public/logo-sunshine.png
+public/attractions/
+public/resort/
