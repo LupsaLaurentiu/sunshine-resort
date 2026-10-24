@@ -11,6 +11,7 @@ export function ReservationWelcome({ platform, api }: { platform: TvPlatform; ap
   const [pairingCode, setPairingCode] = useState('');
   useEffect(() => {
     let stopped = false;
+    let visible = !document.hidden;
     let request: AbortController | null = null;
     let timer: number | undefined, expiry: number | undefined;
     let pendingPairingUntil = 0, secret = '', base = '';
@@ -23,14 +24,14 @@ export function ReservationWelcome({ platform, api }: { platform: TvPlatform; ap
     } catch { setStatus('Secure API or device storage unavailable'); return; }
 
     const refresh = async () => {
-      if (stopped || request || document.hidden) return;
+      if (stopped || request || document.hidden || !visible) return;
       clearTimeout(timer);
       const controller = new AbortController(); request = controller;
       const timeout = window.setTimeout(() => controller.abort(), 8000);
       const started = performance.now();
       try {
         const response = await fetch(`${base}/tv/me/content`, { signal: controller.signal, credentials: 'omit', cache: 'no-store', headers: { Authorization: `Bearer ${secret}` } });
-        if (stopped || controller.signal.aborted || document.hidden) return;
+        if (stopped || controller.signal.aborted || document.hidden || !visible) return;
         if (response.status === 401) {
           clear(false);
           const reason = await response.json();
@@ -42,7 +43,7 @@ export function ReservationWelcome({ platform, api }: { platform: TvPlatform; ap
             if (!registration.ok) throw new Error('Pairing unavailable');
             const pair = await registration.json();
             if (!/^[A-F0-9]{8}$/.test(pair.code)) throw new Error('Invalid pairing response');
-            if (stopped || controller.signal.aborted || document.hidden) return;
+            if (stopped || controller.signal.aborted || document.hidden || !visible) return;
             pendingPairingUntil = Date.now() + 9 * 60_000; setPairingCode(pair.code);
           }
           setStatus('Waiting for administrator approval'); return;
@@ -50,7 +51,7 @@ export function ReservationWelcome({ platform, api }: { platform: TvPlatform; ap
         if (!response.ok) throw new Error('TV API unavailable');
         const parsed = parseReservationContent(await response.json());
         const remaining = parsed.leaseMs - (performance.now() - started);
-        if (stopped || controller.signal.aborted || document.hidden || remaining <= 0) return;
+        if (stopped || controller.signal.aborted || document.hidden || !visible || remaining <= 0) return;
         pendingPairingUntil = 0; setPairingCode('');
         setContent(parsed.content); setStatus('Reservation API connected');
         clearTimeout(expiry);
@@ -58,10 +59,11 @@ export function ReservationWelcome({ platform, api }: { platform: TvPlatform; ap
       } catch { if (!stopped) { clear(); setStatus('Connection unavailable · retrying'); } }
       finally {
         clearTimeout(timeout); request = null;
-        if (!stopped && !document.hidden) timer = window.setTimeout(refresh, pendingPairingUntil ? 5000 : 30000);
+        if (!stopped && !document.hidden && visible) timer = window.setTimeout(refresh, pendingPairingUntil ? 5000 : 30000);
       }
     };
     const unsubscribe = platform.subscribeLifecycle(event => {
+      visible = event !== 'hidden';
       clear(); clearTimeout(timer);
       if (event === 'hidden') request?.abort(); else void refresh();
     });

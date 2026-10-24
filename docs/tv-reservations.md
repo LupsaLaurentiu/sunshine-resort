@@ -1,5 +1,12 @@
 # Reservation-driven TV integration
 
+## Android TV hardware PoC
+
+The shared interface now also has a native Android TV host. It uses the same
+HTTPS API and PMS pairing, local branding/assets and guest-expiry rules, with
+native remote keys, activity-close and background lifecycle handling. See
+[Android build, installation, security and hardware validation](tv-android.md).
+
 ## Lighter exit dialog (0.3.6)
 
 The exit dialog stays mounted between openings, hidden and inert while closed.

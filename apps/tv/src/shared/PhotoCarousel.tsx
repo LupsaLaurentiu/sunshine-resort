@@ -21,12 +21,18 @@ export function PhotoCarousel({ language, paused, recommendations = '', gallery 
     const visibility = () => setVisible(!document.hidden);
     const media = window.matchMedia('(prefers-reduced-motion: reduce)');
     const motionPreference = () => setReducedMotion(media.matches);
+    const nativeVisibility = (event: Event) => {
+      const state = (event as CustomEvent<string>).detail;
+      if (state === 'hidden') setVisible(false);
+      else if (state === 'visible') visibility();
+    };
     document.addEventListener('visibilitychange', visibility);
+    window.addEventListener('sunshine:android-lifecycle', nativeVisibility);
     media.addEventListener('change', motionPreference);
     // webOS can become visible between the initial render and effect setup.
     visibility();
     motionPreference();
-    return () => { document.removeEventListener('visibilitychange', visibility); media.removeEventListener('change', motionPreference); };
+    return () => { document.removeEventListener('visibilitychange', visibility); window.removeEventListener('sunshine:android-lifecycle', nativeVisibility); media.removeEventListener('change', motionPreference); };
   }, []);
 
   return <div className={`photo-carousel photo-carousel--${gallery}`} role="region" aria-roledescription={ro ? 'carusel' : 'carousel'} aria-label={gallery === 'resort' ? (ro ? 'Fotografii cu resortul și camerele' : 'Resort and room photographs') : (ro ? 'Fotografii din Maramureș' : 'Photographs of Maramureș')} data-slide={index} data-playing={playing}>

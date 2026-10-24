@@ -136,7 +136,7 @@ export function WelcomeApp({ content, platform, connectionStatus, pairingCode }:
   return <div className={`tv-shell${isGallery ? ' tv-shell--gallery' : ''}${exitRequested ? ' tv-shell--dialog' : ''}`} ref={root} lang={language} data-section={section}>
     {isGallery && <PhotoCarousel key={section} gallery={section === 'welcome' ? 'resort' : 'attractions'} language={language} paused={exitRequested} recommendations={localized?.attractions} />}
     <header className="topbar">
-      <div className="brand"><img className="brand-logo" src="./logo-sunshine.png" alt="Sunshine Resort" /><div>{content.resortName}<small>ADULTS ONLY · MARAMUREȘ</small></div></div>
+      <div className="brand"><img className="brand-logo" src="./logo-sunshine-tv.png" alt="Sunshine Resort" /><div>{content.resortName}<small>ADULTS ONLY · MARAMUREȘ</small></div></div>
       <div className="header-actions"><button className="secondary exit-button" onClick={() => setExitRequested(true)}><TvIcon /><span>{t.exit}</span></button><time>{clock}<small>BUCHAREST</small></time></div>
     </header>
     <nav className="section-navigation" aria-label={t.navigation}>
@@ -157,7 +157,7 @@ export function WelcomeApp({ content, platform, connectionStatus, pairingCode }:
     </main>
     <footer><span>{t.keys}</span><span className={offline ? 'offline-note' : ''}>{offline ? t.offline : t.checkout}</span></footer>
     <div className={`overlay${exitRequested ? ' is-open' : ''}`} inert={!exitRequested} aria-hidden={!exitRequested}><section className="exit-dialog" role={exitRequested ? 'dialog' : undefined} aria-modal={exitRequested ? true : undefined} aria-labelledby="exit-title" aria-describedby="exit-description">
-      <div className="exit-dialog-mark" aria-hidden="true"><img src="./logo-sunshine.png" alt="" /></div>
+      <div className="exit-dialog-mark" aria-hidden="true"><img src="./logo-sunshine-tv.png" alt="" /></div>
       <p className="eyebrow">SUNSHINE RESORT</p><div className="exit-dialog-divider" />
       <h2 id="exit-title">{t.exitTitle}</h2><p id="exit-description" className="exit-dialog-description">{t.exitHint}</p>
       <div className="exit-dialog-actions"><button className="exit-dialog-stay action-button" onClick={() => setExitRequested(false)}><ArrowIcon direction="left" /><span>{t.stay}</span></button><button className="exit-dialog-leave action-button" onClick={platform.exit}><TvIcon /><span>{t.close}</span></button></div>

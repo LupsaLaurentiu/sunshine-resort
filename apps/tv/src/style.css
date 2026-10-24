@@ -10,7 +10,7 @@ button:disabled { cursor: default; opacity: .25; }
 .topbar, main, footer { position: relative; z-index: 1; }
 .topbar { padding-bottom: 2vh; border-bottom: 1px solid #ffffff20; }
 .brand { justify-content: flex-start; gap: 1.2vw; color: #f2d9a3; letter-spacing: .22em; font-size: 1.1vw; }
-.brand-logo { width: 4.8vw; height: 6vw; max-height: 10vh; object-fit: contain; filter: brightness(0) invert(1); }
+.brand-logo { width: 5.4vw; height: 6vw; max-height: 10vh; object-fit: contain; }
 small { display: block; font: .65vw var(--font-ui); letter-spacing: .2em; margin-top: .7vw; color: #d1c6b2; }
 .header-actions { gap: 2vw; }
 button.exit-button { display: inline-flex; align-items: center; gap: .7vw; font-size: .8vw; padding: .7vw .2vw; background: transparent; border-color: transparent; border-bottom-color: #ffffff25; }
@@ -76,7 +76,7 @@ footer { border-top: 1px solid #ffffff20; padding-top: 2vh; color: #d1c6b2; font
 .exit-dialog { position: relative; width: 58vw; max-height: 88vh; padding: 3vw 3.8vw 2.4vw; border: 1px solid #e3c98c30; border-radius: 1vw; background: radial-gradient(ellipse at 50% 0, #b4955220, transparent 58%), linear-gradient(145deg, #1b1c16, #0b0d09); box-shadow: inset 0 1px #fff1; text-align: center; opacity: 0; will-change: opacity; transition: opacity .12s ease-out; }
 .overlay.is-open .exit-dialog { opacity: 1; }
 .exit-dialog-mark { display: flex; align-items: center; justify-content: center; width: 6.4vw; height: 6.4vw; margin: 0 auto 1.8vh; border: 1px solid #d4b47728; border-radius: 50%; background: radial-gradient(circle, #d4b4770d, transparent 75%); }
-.exit-dialog-mark img { width: 4.2vw; height: 5vw; object-fit: contain; filter: brightness(0) invert(1); opacity: .85; }
+.exit-dialog-mark img { width: 4.2vw; height: 5vw; object-fit: contain; opacity: .85; }
 .exit-dialog .eyebrow { font-size: .65vw; margin-bottom: 1.6vh; color: #d7bd82; }
 .exit-dialog-divider { width: 2.6vw; height: 1px; background: #d7bd8266; margin: 0 auto 2.8vh; }
 .exit-dialog h2 { margin: 0; font-size: 3.2vw; line-height: 1.15; color: #f5ecda; letter-spacing: -.025em; }

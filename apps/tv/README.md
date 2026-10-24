@@ -1,24 +1,25 @@
-# Sunshine Resort TV — LG webOS PoC
+# Sunshine Resort TV — webOS and Android TV
 
-Reservation integration has now been implemented separately from this demo. See
-[deployment, pairing, security and remaining blockers](../../docs/tv-reservations.md).
-The installed TV remains in fictional-data mode until the database and HTTPS API
-deployment are ready; building the new code does not itself enable live reservations.
+The shared interface supports reservation-driven content, PMS room pairing and
+bilingual resort information. See [reservation integration](../../docs/tv-reservations.md)
+and [Android TV build, installation and test procedure](../../docs/tv-android.md).
 
-Isolated React/TypeScript prototype connected to the NestJS demo endpoint. Fictional
-guest only; no device credentials, local guest storage, migrations or PMS changes.
+Real-reservation builds use the configured HTTPS API. The demo mode and its
+historical validation notes remain documented below; guest names are never stored
+locally in either native package.
 
 ## Structure
 
 - `src/shared`: platform-independent UI, HTTP client, fallback and minimal contracts.
-- `src/platform/webos.ts`: LG close and lifecycle adapter. A future Android entry
-  point can inject a different `TvPlatform` without changing the UI.
+- `src/platform/webos.ts`: LG close and lifecycle adapter.
+- `src/platform/android.ts`: Android native-close bridge and activity lifecycle adapter.
+- `android`: minimal Android TV WebView host, native remote keys and Leanback launcher entry.
 - `webos/appinfo.json`: LG package manifest.
 - `scripts/prepare-assets.mjs`: reuses the website logo and optimizes separate room/pool and Maramureș galleries for offline TV playback.
 - `scripts/prepare-webos.mjs`: copies the manifest and renders 80/130px launcher icons from the existing Sunshine Resort logo; `sharp` is a build-only dependency.
 - Typography: [Montserrat Variable](https://fontsource.org/fonts/montserrat) is bundled locally in normal/italic faces, including Romanian diacritics. The IPK contains the original font license as `Montserrat-OFL.txt`.
 - `dist`: generated, packaged static application with relative asset paths.
-- `artifacts`: generated `.ipk`; not committed.
+- `artifacts`: generated `.ipk` and Android test `.apk`; not committed.
 
 Each existing application has its own npm manifest/lockfile; this prototype follows
 that convention. No root workspace or new shared package is needed for one consumer.

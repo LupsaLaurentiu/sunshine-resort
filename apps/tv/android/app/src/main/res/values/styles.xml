@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="SunshineTheme" parent="android:style/Theme.Material.NoActionBar">
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowBackground">#080908</item>
+        <item name="android:colorAccent">#C9A65A</item>
+        <item name="android:windowActionModeOverlay">true</item>
+    </style>
+</resources>

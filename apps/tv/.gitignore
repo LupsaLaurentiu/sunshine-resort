@@ -1,5 +1,11 @@
 artifacts/
 .npm-cache/
 public/logo-sunshine.png
+public/logo-sunshine-tv.png
 public/attractions/
 public/resort/
+dist-android/
+android/.gradle/
+android/local.properties
+android/app/src/main/res/drawable/launcher.png
+android/app/src/main/res/drawable/banner.png

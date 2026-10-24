@@ -1,8 +1,22 @@
 import { mkdir, copyFile } from 'node:fs/promises';
 import sharp from 'sharp';
 await mkdir('public', { recursive: true });
-// Reuse the website's canonical asset. No replacement or generated logo.
+// Keep the website's canonical asset for platform icons.
 await copyFile('../web/public/logo-sunshine.png', 'public/logo-sunshine.png');
+// Prepare the same artwork for the small, light-on-dark TV header. Expanding
+// the white mask slightly keeps fine strokes visible after downsampling.
+// libvips morphology treats black as foreground, so erode expands white here.
+const alpha = await sharp('public/logo-sunshine.png').ensureAlpha()
+  .extractChannel('alpha').png().toBuffer();
+const { data: mask, info } = await sharp(alpha).erode(2)
+  .toColourspace('b-w').raw().toBuffer({ resolveWithObject: true });
+const lightLogo = Buffer.alloc(info.width * info.height * 4, 255);
+for (let pixel = 0; pixel < info.width * info.height; pixel++) {
+  lightLogo[pixel * 4 + 3] = mask[pixel * info.channels];
+}
+await sharp(lightLogo, { raw: { width: info.width, height: info.height, channels: 4 } })
+  .trim().resize({ height: 512, kernel: 'lanczos3' })
+  .png().toFile('public/logo-sunshine-tv.png');
 await mkdir('public/attractions', { recursive: true });
 for (const index of [1, 2, 3, 4]) {
   await sharp(`../web/public/images/ogna-sugatag-${index}.png`)
